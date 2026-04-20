@@ -1,0 +1,804 @@
+<?xml version="1.0" ?>
+<!--
+  Yale-Style Campus - Traditional Quad Layout
+  ~400m x 400m
+  Design inspired by Yale's Old Campus / Cross Campus layout:
+    - Enclosed residential quadrangles with central greens
+    - Chapel/bell tower as focal point
+    - Diagonal pathways cutting through quads
+    - Perimeter buildings define quad edges
+    - Surrounding street grid (College/High/Chapel/Grove St equivalents)
+-->
+<sdf version="1.8">
+  <world name="yale_campus">
+
+    <plugin filename="gz-sim-physics-system" name="gz::sim::systems::Physics"/>
+    <plugin filename="gz-sim-sensors-system" name="gz::sim::systems::Sensors">
+      <render_engine>ogre2</render_engine>
+    </plugin>
+    <plugin filename="gz-sim-scene-broadcaster-system" name="gz::sim::systems::SceneBroadcaster"/>
+    <plugin filename="gz-sim-user-commands-system" name="gz::sim::systems::UserCommands"/>
+
+    <physics type="ode">
+      <real_time_update_rate>1000.0</real_time_update_rate>
+      <max_step_size>0.001</max_step_size>
+      <real_time_factor>1</real_time_factor>
+    </physics>
+
+    <light type="directional" name="sun">
+      <cast_shadows>true</cast_shadows>
+      <pose>0 0 100 0 0 0</pose>
+      <diffuse>0.9 0.9 0.85 1</diffuse>
+      <specular>0.3 0.3 0.3 1</specular>
+      <attenuation><range>1000</range><constant>0.9</constant><linear>0.01</linear><quadratic>0.001</quadratic></attenuation>
+      <direction>-0.5 0.1 -0.9</direction>
+    </light>
+    <light type="directional" name="fill">
+      <cast_shadows>false</cast_shadows>
+      <pose>0 0 50 0 0 0</pose>
+      <diffuse>0.35 0.38 0.45 1</diffuse>
+      <specular>0 0 0 1</specular>
+      <direction>0.5 -0.1 -0.5</direction>
+    </light>
+
+    <!-- ===== GROUND (grass) ===== -->
+    <model name="ground_plane">
+      <static>true</static>
+      <link name="link">
+        <collision name="c">
+          <geometry><plane><normal>0 0 1</normal><size>500 500</size></plane></geometry>
+          <surface><friction><ode><mu>0.8</mu><mu2>0.8</mu2></ode></friction></surface>
+        </collision>
+        <visual name="v">
+          <geometry><plane><normal>0 0 1</normal><size>500 500</size></plane></geometry>
+          <material><ambient>0.24 0.42 0.17 1</ambient><diffuse>0.27 0.46 0.19 1</diffuse></material>
+        </visual>
+      </link>
+    </model>
+
+    <!--
+    ================================================================
+    LAYOUT OVERVIEW (looking top-down, x=east, y=north)
+
+                        ELM ST (y=150)
+    ============================================================
+    ||                                                        ||
+    ||   [Kroon]        [Dunham]    [Sterling]   [Beinecke]   ||
+    ||                                                        ||
+    ||   ==========  NORTH QUAD (central green) =========     ||
+    ||   [Branford]    [FOUNTAIN]    [Saybrook]              ||
+    Y    ==========                                           G
+    O    [Chapel Tower]  CROSS CAMPUS  [Library]              R
+    R    ==========                                           O
+    K    [Davenport]    [Berkeley]    [Pierson]               V
+         ==========  SOUTH QUAD (central green) ==========    E
+    S                                                         
+    T    [Silliman]    [Ezra Stiles]  [Morse]   [Timothy]     S
+    ||                                                        T
+    ||                                                        ||
+    ============================================================
+                      CHAPEL ST (y=-150)
+    ================================================================
+    -->
+
+    <!-- ===================================================
+         STREET NETWORK (perimeter + internal streets)
+         ===================================================-->
+
+    <!-- ELM ST (north perimeter, y=150) -->
+    <model name="road_elm_st"><static>true</static><link name="link">
+      <collision name="c"><geometry><box><size>340 10 0.05</size></box></geometry><surface><friction><ode><mu>1.0</mu><mu2>1.0</mu2></ode></friction><contact><ode><kp>1e8</kp><kd>10.0</kd></ode></contact></surface></collision>
+      <visual name="v"><geometry><box><size>340 10 0.05</size></box></geometry>
+        <material><ambient>0.20 0.20 0.20 1</ambient><diffuse>0.22 0.22 0.22 1</diffuse></material>
+      </visual>
+    </link><pose>0 150 0.025 0 0 0</pose></model>
+    <model name="stripe_elm"><static>true</static><link name="link">
+      <visual name="v"><geometry><box><size>340 0.25 0.01</size></box></geometry>
+        <material><ambient>0.95 0.85 0.0 1</ambient><diffuse>0.95 0.85 0.0 1</diffuse></material>
+      </visual>
+    </link><pose>0 150 0.055 0 0 0</pose></model>
+    <model name="sw_elm_s"><static>true</static><link name="link">
+      <collision name="c"><geometry><box><size>340 3 0.08</size></box></geometry><surface><friction><ode><mu>1.0</mu><mu2>1.0</mu2></ode></friction><contact><ode><kp>1e8</kp><kd>10.0</kd></ode></contact></surface></collision>
+      <visual name="v"><geometry><box><size>340 3 0.08</size></box></geometry>
+        <material><ambient>0.76 0.76 0.73 1</ambient><diffuse>0.76 0.76 0.73 1</diffuse></material>
+      </visual>
+    </link><pose>0 144.5 0.04 0 0 0</pose></model>
+    <model name="sw_elm_n"><static>true</static><link name="link">
+      <collision name="c"><geometry><box><size>340 3 0.08</size></box></geometry><surface><friction><ode><mu>1.0</mu><mu2>1.0</mu2></ode></friction><contact><ode><kp>1e8</kp><kd>10.0</kd></ode></contact></surface></collision>
+      <visual name="v"><geometry><box><size>340 3 0.08</size></box></geometry>
+        <material><ambient>0.76 0.76 0.73 1</ambient><diffuse>0.76 0.76 0.73 1</diffuse></material>
+      </visual>
+    </link><pose>0 155.5 0.04 0 0 0</pose></model>
+    <model name="verge_elm_s"><static>true</static><link name="link">
+      <visual name="v"><geometry><box><size>340 2 0.01</size></box></geometry>
+        <material><ambient>0.22 0.40 0.15 1</ambient><diffuse>0.25 0.44 0.17 1</diffuse></material>
+      </visual>
+    </link><pose>0 141.5 0.005 0 0 0</pose></model>
+
+    <!-- CHAPEL ST (south perimeter, y=-150) -->
+    <model name="road_chapel_st"><static>true</static><link name="link">
+      <collision name="c"><geometry><box><size>340 10 0.05</size></box></geometry><surface><friction><ode><mu>1.0</mu><mu2>1.0</mu2></ode></friction><contact><ode><kp>1e8</kp><kd>10.0</kd></ode></contact></surface></collision>
+      <visual name="v"><geometry><box><size>340 10 0.05</size></box></geometry>
+        <material><ambient>0.20 0.20 0.20 1</ambient><diffuse>0.22 0.22 0.22 1</diffuse></material>
+      </visual>
+    </link><pose>0 -150 0.025 0 0 0</pose></model>
+    <model name="stripe_chapel"><static>true</static><link name="link">
+      <visual name="v"><geometry><box><size>340 0.25 0.01</size></box></geometry>
+        <material><ambient>0.95 0.85 0.0 1</ambient><diffuse>0.95 0.85 0.0 1</diffuse></material>
+      </visual>
+    </link><pose>0 -150 0.055 0 0 0</pose></model>
+    <model name="sw_chapel_n"><static>true</static><link name="link">
+      <collision name="c"><geometry><box><size>340 3 0.08</size></box></geometry><surface><friction><ode><mu>1.0</mu><mu2>1.0</mu2></ode></friction><contact><ode><kp>1e8</kp><kd>10.0</kd></ode></contact></surface></collision>
+      <visual name="v"><geometry><box><size>340 3 0.08</size></box></geometry>
+        <material><ambient>0.76 0.76 0.73 1</ambient><diffuse>0.76 0.76 0.73 1</diffuse></material>
+      </visual>
+    </link><pose>0 -144.5 0.04 0 0 0</pose></model>
+    <model name="sw_chapel_s"><static>true</static><link name="link">
+      <collision name="c"><geometry><box><size>340 3 0.08</size></box></geometry><surface><friction><ode><mu>1.0</mu><mu2>1.0</mu2></ode></friction><contact><ode><kp>1e8</kp><kd>10.0</kd></ode></contact></surface></collision>
+      <visual name="v"><geometry><box><size>340 3 0.08</size></box></geometry>
+        <material><ambient>0.76 0.76 0.73 1</ambient><diffuse>0.76 0.76 0.73 1</diffuse></material>
+      </visual>
+    </link><pose>0 -155.5 0.04 0 0 0</pose></model>
+    <model name="verge_chapel_n"><static>true</static><link name="link">
+      <visual name="v"><geometry><box><size>340 2 0.01</size></box></geometry>
+        <material><ambient>0.22 0.40 0.15 1</ambient><diffuse>0.25 0.44 0.17 1</diffuse></material>
+      </visual>
+    </link><pose>0 -141.5 0.005 0 0 0</pose></model>
+
+    <!-- YORK ST (west perimeter, x=-170) -->
+    <model name="road_york_st"><static>true</static><link name="link">
+      <collision name="c"><geometry><box><size>9 320 0.05</size></box></geometry><surface><friction><ode><mu>1.0</mu><mu2>1.0</mu2></ode></friction><contact><ode><kp>1e8</kp><kd>10.0</kd></ode></contact></surface></collision>
+      <visual name="v"><geometry><box><size>9 320 0.05</size></box></geometry>
+        <material><ambient>0.20 0.20 0.20 1</ambient><diffuse>0.22 0.22 0.22 1</diffuse></material>
+      </visual>
+    </link><pose>-170 0 0.025 0 0 0</pose></model>
+    <model name="stripe_york"><static>true</static><link name="link">
+      <visual name="v"><geometry><box><size>0.25 320 0.01</size></box></geometry>
+        <material><ambient>0.95 0.85 0.0 1</ambient><diffuse>0.95 0.85 0.0 1</diffuse></material>
+      </visual>
+    </link><pose>-170 0 0.055 0 0 0</pose></model>
+    <model name="sw_york_e"><static>true</static><link name="link">
+      <collision name="c"><geometry><box><size>3 320 0.08</size></box></geometry><surface><friction><ode><mu>1.0</mu><mu2>1.0</mu2></ode></friction><contact><ode><kp>1e8</kp><kd>10.0</kd></ode></contact></surface></collision>
+      <visual name="v"><geometry><box><size>3 320 0.08</size></box></geometry>
+        <material><ambient>0.76 0.76 0.73 1</ambient><diffuse>0.76 0.76 0.73 1</diffuse></material>
+      </visual>
+    </link><pose>-165 0 0.04 0 0 0</pose></model>
+    <model name="sw_york_w"><static>true</static><link name="link">
+      <collision name="c"><geometry><box><size>3 320 0.08</size></box></geometry><surface><friction><ode><mu>1.0</mu><mu2>1.0</mu2></ode></friction><contact><ode><kp>1e8</kp><kd>10.0</kd></ode></contact></surface></collision>
+      <visual name="v"><geometry><box><size>3 320 0.08</size></box></geometry>
+        <material><ambient>0.76 0.76 0.73 1</ambient><diffuse>0.76 0.76 0.73 1</diffuse></material>
+      </visual>
+    </link><pose>-175 0 0.04 0 0 0</pose></model>
+
+    <!-- GROVE ST (east perimeter, x=170) -->
+    <model name="road_grove_st"><static>true</static><link name="link">
+      <collision name="c"><geometry><box><size>9 320 0.05</size></box></geometry><surface><friction><ode><mu>1.0</mu><mu2>1.0</mu2></ode></friction><contact><ode><kp>1e8</kp><kd>10.0</kd></ode></contact></surface></collision>
+      <visual name="v"><geometry><box><size>9 320 0.05</size></box></geometry>
+        <material><ambient>0.20 0.20 0.20 1</ambient><diffuse>0.22 0.22 0.22 1</diffuse></material>
+      </visual>
+    </link><pose>170 0 0.025 0 0 0</pose></model>
+    <model name="stripe_grove"><static>true</static><link name="link">
+      <visual name="v"><geometry><box><size>0.25 320 0.01</size></box></geometry>
+        <material><ambient>0.95 0.85 0.0 1</ambient><diffuse>0.95 0.85 0.0 1</diffuse></material>
+      </visual>
+    </link><pose>170 0 0.055 0 0 0</pose></model>
+    <model name="sw_grove_w"><static>true</static><link name="link">
+      <collision name="c"><geometry><box><size>3 320 0.08</size></box></geometry><surface><friction><ode><mu>1.0</mu><mu2>1.0</mu2></ode></friction><contact><ode><kp>1e8</kp><kd>10.0</kd></ode></contact></surface></collision>
+      <visual name="v"><geometry><box><size>3 320 0.08</size></box></geometry>
+        <material><ambient>0.76 0.76 0.73 1</ambient><diffuse>0.76 0.76 0.73 1</diffuse></material>
+      </visual>
+    </link><pose>165 0 0.04 0 0 0</pose></model>
+    <model name="sw_grove_e"><static>true</static><link name="link">
+      <collision name="c"><geometry><box><size>3 320 0.08</size></box></geometry><surface><friction><ode><mu>1.0</mu><mu2>1.0</mu2></ode></friction><contact><ode><kp>1e8</kp><kd>10.0</kd></ode></contact></surface></collision>
+      <visual name="v"><geometry><box><size>3 320 0.08</size></box></geometry>
+        <material><ambient>0.76 0.76 0.73 1</ambient><diffuse>0.76 0.76 0.73 1</diffuse></material>
+      </visual>
+    </link><pose>175 0 0.04 0 0 0</pose></model>
+
+    <!-- CROSS CAMPUS ST (middle EW road, y=0) - runs through middle -->
+    <model name="road_cross_campus"><static>true</static><link name="link">
+      <collision name="c"><geometry><box><size>340 8 0.05</size></box></geometry><surface><friction><ode><mu>1.0</mu><mu2>1.0</mu2></ode></friction><contact><ode><kp>1e8</kp><kd>10.0</kd></ode></contact></surface></collision>
+      <visual name="v"><geometry><box><size>340 8 0.05</size></box></geometry>
+        <material><ambient>0.20 0.20 0.20 1</ambient><diffuse>0.22 0.22 0.22 1</diffuse></material>
+      </visual>
+    </link><pose>0 0 0.025 0 0 0</pose></model>
+    <model name="stripe_cross"><static>true</static><link name="link">
+      <visual name="v"><geometry><box><size>340 0.25 0.01</size></box></geometry>
+        <material><ambient>0.95 0.85 0.0 1</ambient><diffuse>0.95 0.85 0.0 1</diffuse></material>
+      </visual>
+    </link><pose>0 0 0.055 0 0 0</pose></model>
+    <model name="sw_cross_n"><static>true</static><link name="link">
+      <collision name="c"><geometry><box><size>340 2.5 0.08</size></box></geometry><surface><friction><ode><mu>1.0</mu><mu2>1.0</mu2></ode></friction><contact><ode><kp>1e8</kp><kd>10.0</kd></ode></contact></surface></collision>
+      <visual name="v"><geometry><box><size>340 2.5 0.08</size></box></geometry>
+        <material><ambient>0.76 0.76 0.73 1</ambient><diffuse>0.76 0.76 0.73 1</diffuse></material>
+      </visual>
+    </link><pose>0 5.25 0.04 0 0 0</pose></model>
+    <model name="sw_cross_s"><static>true</static><link name="link">
+      <collision name="c"><geometry><box><size>340 2.5 0.08</size></box></geometry><surface><friction><ode><mu>1.0</mu><mu2>1.0</mu2></ode></friction><contact><ode><kp>1e8</kp><kd>10.0</kd></ode></contact></surface></collision>
+      <visual name="v"><geometry><box><size>340 2.5 0.08</size></box></geometry>
+        <material><ambient>0.76 0.76 0.73 1</ambient><diffuse>0.76 0.76 0.73 1</diffuse></material>
+      </visual>
+    </link><pose>0 -5.25 0.04 0 0 0</pose></model>
+
+    <!-- ===================================================
+         INTERNAL PATHWAYS (pedestrian only, no roads)
+         Brick-colored paths cutting through the quads
+         ===================================================-->
+
+    <!-- North Quad pathways: cross pattern -->
+    <model name="path_nq_ew"><static>true</static><link name="link">
+      <collision name="c"><geometry><box><size>140 3 0.06</size></box></geometry><surface><friction><ode><mu>1.0</mu><mu2>1.0</mu2></ode></friction><contact><ode><kp>1e8</kp><kd>10.0</kd></ode></contact></surface></collision>
+      <visual name="v"><geometry><box><size>140 3 0.06</size></box></geometry>
+        <material><ambient>0.55 0.35 0.25 1</ambient><diffuse>0.60 0.38 0.28 1</diffuse></material>
+      </visual>
+    </link><pose>0 80 0.03 0 0 0</pose></model>
+    <model name="path_nq_ns"><static>true</static><link name="link">
+      <collision name="c"><geometry><box><size>3 80 0.06</size></box></geometry><surface><friction><ode><mu>1.0</mu><mu2>1.0</mu2></ode></friction><contact><ode><kp>1e8</kp><kd>10.0</kd></ode></contact></surface></collision>
+      <visual name="v"><geometry><box><size>3 80 0.06</size></box></geometry>
+        <material><ambient>0.55 0.35 0.25 1</ambient><diffuse>0.60 0.38 0.28 1</diffuse></material>
+      </visual>
+    </link><pose>0 80 0.03 0 0 0</pose></model>
+    <!-- North Quad diagonal pathways (corner to corner) -->
+    <model name="path_nq_diag1"><static>true</static><link name="link">
+      <collision name="c"><geometry><box><size>100 2.5 0.06</size></box></geometry><surface><friction><ode><mu>1.0</mu><mu2>1.0</mu2></ode></friction><contact><ode><kp>1e8</kp><kd>10.0</kd></ode></contact></surface></collision>
+      <visual name="v"><geometry><box><size>100 2.5 0.06</size></box></geometry>
+        <material><ambient>0.55 0.35 0.25 1</ambient><diffuse>0.60 0.38 0.28 1</diffuse></material>
+      </visual>
+    </link><pose>0 80 0.03 0 0 0.615</pose></model>
+    <model name="path_nq_diag2"><static>true</static><link name="link">
+      <collision name="c"><geometry><box><size>100 2.5 0.06</size></box></geometry><surface><friction><ode><mu>1.0</mu><mu2>1.0</mu2></ode></friction><contact><ode><kp>1e8</kp><kd>10.0</kd></ode></contact></surface></collision>
+      <visual name="v"><geometry><box><size>100 2.5 0.06</size></box></geometry>
+        <material><ambient>0.55 0.35 0.25 1</ambient><diffuse>0.60 0.38 0.28 1</diffuse></material>
+      </visual>
+    </link><pose>0 80 0.03 0 0 -0.615</pose></model>
+
+    <!-- South Quad pathways -->
+    <model name="path_sq_ew"><static>true</static><link name="link">
+      <collision name="c"><geometry><box><size>140 3 0.06</size></box></geometry><surface><friction><ode><mu>1.0</mu><mu2>1.0</mu2></ode></friction><contact><ode><kp>1e8</kp><kd>10.0</kd></ode></contact></surface></collision>
+      <visual name="v"><geometry><box><size>140 3 0.06</size></box></geometry>
+        <material><ambient>0.55 0.35 0.25 1</ambient><diffuse>0.60 0.38 0.28 1</diffuse></material>
+      </visual>
+    </link><pose>0 -80 0.03 0 0 0</pose></model>
+    <model name="path_sq_ns"><static>true</static><link name="link">
+      <collision name="c"><geometry><box><size>3 80 0.06</size></box></geometry><surface><friction><ode><mu>1.0</mu><mu2>1.0</mu2></ode></friction><contact><ode><kp>1e8</kp><kd>10.0</kd></ode></contact></surface></collision>
+      <visual name="v"><geometry><box><size>3 80 0.06</size></box></geometry>
+        <material><ambient>0.55 0.35 0.25 1</ambient><diffuse>0.60 0.38 0.28 1</diffuse></material>
+      </visual>
+    </link><pose>0 -80 0.03 0 0 0</pose></model>
+    <model name="path_sq_diag1"><static>true</static><link name="link">
+      <collision name="c"><geometry><box><size>100 2.5 0.06</size></box></geometry><surface><friction><ode><mu>1.0</mu><mu2>1.0</mu2></ode></friction><contact><ode><kp>1e8</kp><kd>10.0</kd></ode></contact></surface></collision>
+      <visual name="v"><geometry><box><size>100 2.5 0.06</size></box></geometry>
+        <material><ambient>0.55 0.35 0.25 1</ambient><diffuse>0.60 0.38 0.28 1</diffuse></material>
+      </visual>
+    </link><pose>0 -80 0.03 0 0 0.615</pose></model>
+    <model name="path_sq_diag2"><static>true</static><link name="link">
+      <collision name="c"><geometry><box><size>100 2.5 0.06</size></box></geometry><surface><friction><ode><mu>1.0</mu><mu2>1.0</mu2></ode></friction><contact><ode><kp>1e8</kp><kd>10.0</kd></ode></contact></surface></collision>
+      <visual name="v"><geometry><box><size>100 2.5 0.06</size></box></geometry>
+        <material><ambient>0.55 0.35 0.25 1</ambient><diffuse>0.60 0.38 0.28 1</diffuse></material>
+      </visual>
+    </link><pose>0 -80 0.03 0 0 -0.615</pose></model>
+
+    <!-- ===================================================
+         CHAPEL / BELL TOWER (focal point, center of campus)
+         ===================================================-->
+    <model name="chapel_tower"><static>true</static><link name="link">
+      <collision name="base_c"><geometry><box><size>14 14 12</size></box></geometry><surface><friction><ode><mu>1.0</mu><mu2>1.0</mu2></ode></friction><contact><ode><kp>1e8</kp><kd>10.0</kd></ode></contact></surface></collision>
+      <visual name="base"><geometry><box><size>14 14 12</size></box></geometry>
+        <material><ambient>0.70 0.65 0.55 1</ambient><diffuse>0.72 0.67 0.57 1</diffuse></material>
+      </visual>
+      <!-- Middle tier -->
+      <visual name="tier2"><pose>0 0 9 0 0 0</pose>
+        <geometry><box><size>10 10 8</size></box></geometry>
+        <material><ambient>0.68 0.63 0.53 1</ambient><diffuse>0.70 0.65 0.55 1</diffuse></material>
+      </visual>
+      <!-- Bell tower -->
+      <visual name="tower"><pose>0 0 18 0 0 0</pose>
+        <geometry><box><size>7 7 12</size></box></geometry>
+        <material><ambient>0.66 0.60 0.48 1</ambient><diffuse>0.68 0.62 0.50 1</diffuse></material>
+      </visual>
+      <!-- Spire -->
+      <visual name="spire"><pose>0 0 28 0 0 0</pose>
+        <geometry><box><size>3 3 8</size></box></geometry>
+        <material><ambient>0.45 0.40 0.35 1</ambient><diffuse>0.48 0.43 0.37 1</diffuse></material>
+      </visual>
+      <!-- Peak -->
+      <visual name="peak"><pose>0 0 34 0 0 0</pose>
+        <geometry><box><size>1 1 4</size></box></geometry>
+        <material><ambient>0.30 0.25 0.20 1</ambient><diffuse>0.32 0.27 0.22 1</diffuse></material>
+      </visual>
+    </link><pose>0 0 6 0 0 0</pose></model>
+
+    <!-- Chapel courtyard (around tower base) -->
+    <model name="chapel_plaza"><static>true</static><link name="link">
+      <collision name="c"><geometry><box><size>30 30 0.08</size></box></geometry><surface><friction><ode><mu>1.0</mu><mu2>1.0</mu2></ode></friction><contact><ode><kp>1e8</kp><kd>10.0</kd></ode></contact></surface></collision>
+      <visual name="v"><geometry><box><size>30 30 0.08</size></box></geometry>
+        <material><ambient>0.70 0.65 0.60 1</ambient><diffuse>0.72 0.67 0.62 1</diffuse></material>
+      </visual>
+    </link><pose>0 0 0.04 0 0 0</pose></model>
+
+    <!-- ===================================================
+         BUILDINGS - Yale residential college layout
+         All building bases are ~1m elevated from road, set back
+         from sidewalks, forming enclosed quads
+         ===================================================-->
+
+    <!-- ============ NORTH QUAD BUILDINGS ============ -->
+    <!-- Sterling Memorial Library (north face of N quad) -->
+    <model name="sterling_library"><static>true</static><link name="link">
+      <collision name="c"><geometry><box><size>80 20 15</size></box></geometry><surface><friction><ode><mu>1.0</mu><mu2>1.0</mu2></ode></friction><contact><ode><kp>1e8</kp><kd>10.0</kd></ode></contact></surface></collision>
+      <visual name="walls"><geometry><box><size>80 20 15</size></box></geometry>
+        <material><ambient>0.70 0.62 0.48 1</ambient><diffuse>0.72 0.64 0.50 1</diffuse></material>
+      </visual>
+      <visual name="roof"><pose>0 0 8 0 0 0</pose>
+        <geometry><box><size>81 21 1</size></box></geometry>
+        <material><ambient>0.45 0.38 0.30 1</ambient><diffuse>0.48 0.40 0.32 1</diffuse></material>
+      </visual>
+      <!-- Sterling's iconic tower wing -->
+      <visual name="sterling_tower"><pose>-30 0 10 0 0 0</pose>
+        <geometry><box><size>12 15 20</size></box></geometry>
+        <material><ambient>0.68 0.60 0.46 1</ambient><diffuse>0.70 0.62 0.48 1</diffuse></material>
+      </visual>
+      <visual name="sterling_tower_roof"><pose>-30 0 21 0 0 0</pose>
+        <geometry><box><size>13 16 2</size></box></geometry>
+        <material><ambient>0.35 0.30 0.25 1</ambient><diffuse>0.38 0.32 0.27 1</diffuse></material>
+      </visual>
+    </link><pose>0 130 7.5 0 0 0</pose></model>
+
+    <!-- Branford College (west side of N quad) -->
+    <model name="branford_college"><static>true</static><link name="link">
+      <collision name="c"><geometry><box><size>20 100 10</size></box></geometry><surface><friction><ode><mu>1.0</mu><mu2>1.0</mu2></ode></friction><contact><ode><kp>1e8</kp><kd>10.0</kd></ode></contact></surface></collision>
+      <visual name="walls"><geometry><box><size>20 100 10</size></box></geometry>
+        <material><ambient>0.65 0.58 0.45 1</ambient><diffuse>0.67 0.60 0.47 1</diffuse></material>
+      </visual>
+      <visual name="roof"><pose>0 0 5.5 0 0 0</pose>
+        <geometry><box><size>21 101 1</size></box></geometry>
+        <material><ambient>0.40 0.33 0.26 1</ambient><diffuse>0.42 0.35 0.28 1</diffuse></material>
+      </visual>
+    </link><pose>-80 80 5 0 0 0</pose></model>
+
+    <!-- Saybrook College (east side of N quad) -->
+    <model name="saybrook_college"><static>true</static><link name="link">
+      <collision name="c"><geometry><box><size>20 100 10</size></box></geometry><surface><friction><ode><mu>1.0</mu><mu2>1.0</mu2></ode></friction><contact><ode><kp>1e8</kp><kd>10.0</kd></ode></contact></surface></collision>
+      <visual name="walls"><geometry><box><size>20 100 10</size></box></geometry>
+        <material><ambient>0.62 0.55 0.43 1</ambient><diffuse>0.64 0.57 0.45 1</diffuse></material>
+      </visual>
+      <visual name="roof"><pose>0 0 5.5 0 0 0</pose>
+        <geometry><box><size>21 101 1</size></box></geometry>
+        <material><ambient>0.40 0.33 0.26 1</ambient><diffuse>0.42 0.35 0.28 1</diffuse></material>
+      </visual>
+    </link><pose>80 80 5 0 0 0</pose></model>
+
+    <!-- Beinecke Rare Book Library (NE corner) -->
+    <model name="beinecke_library"><static>true</static><link name="link">
+      <collision name="c"><geometry><box><size>25 20 10</size></box></geometry><surface><friction><ode><mu>1.0</mu><mu2>1.0</mu2></ode></friction><contact><ode><kp>1e8</kp><kd>10.0</kd></ode></contact></surface></collision>
+      <visual name="walls"><geometry><box><size>25 20 10</size></box></geometry>
+        <material><ambient>0.85 0.82 0.75 1</ambient><diffuse>0.87 0.84 0.77 1</diffuse></material>
+      </visual>
+      <visual name="roof"><pose>0 0 5.5 0 0 0</pose>
+        <geometry><box><size>26 21 1</size></box></geometry>
+        <material><ambient>0.68 0.65 0.58 1</ambient><diffuse>0.70 0.67 0.60 1</diffuse></material>
+      </visual>
+    </link><pose>130 135 5 0 0 0</pose></model>
+
+    <!-- Kroon Hall (NW corner, modern sustainable building) -->
+    <model name="kroon_hall"><static>true</static><link name="link">
+      <collision name="c"><geometry><box><size>30 15 9</size></box></geometry><surface><friction><ode><mu>1.0</mu><mu2>1.0</mu2></ode></friction><contact><ode><kp>1e8</kp><kd>10.0</kd></ode></contact></surface></collision>
+      <visual name="walls"><geometry><box><size>30 15 9</size></box></geometry>
+        <material><ambient>0.55 0.58 0.45 1</ambient><diffuse>0.57 0.60 0.47 1</diffuse></material>
+      </visual>
+      <visual name="roof"><pose>0 0 5 0 0 0</pose>
+        <geometry><box><size>31 16 1</size></box></geometry>
+        <material><ambient>0.42 0.46 0.38 1</ambient><diffuse>0.44 0.48 0.40 1</diffuse></material>
+      </visual>
+    </link><pose>-130 130 4.5 0 0 0</pose></model>
+
+    <!-- Dunham Lab (between Branford and Kroon) -->
+    <model name="dunham_lab"><static>true</static><link name="link">
+      <collision name="c"><geometry><box><size>25 16 8</size></box></geometry><surface><friction><ode><mu>1.0</mu><mu2>1.0</mu2></ode></friction><contact><ode><kp>1e8</kp><kd>10.0</kd></ode></contact></surface></collision>
+      <visual name="walls"><geometry><box><size>25 16 8</size></box></geometry>
+        <material><ambient>0.52 0.50 0.46 1</ambient><diffuse>0.54 0.52 0.48 1</diffuse></material>
+      </visual>
+    </link><pose>-125 100 4 0 0 0</pose></model>
+
+    <!-- ============ SOUTH QUAD BUILDINGS ============ -->
+    <!-- Harkness Tower / Davenport (west side of S quad) -->
+    <model name="davenport_college"><static>true</static><link name="link">
+      <collision name="c"><geometry><box><size>20 100 10</size></box></geometry><surface><friction><ode><mu>1.0</mu><mu2>1.0</mu2></ode></friction><contact><ode><kp>1e8</kp><kd>10.0</kd></ode></contact></surface></collision>
+      <visual name="walls"><geometry><box><size>20 100 10</size></box></geometry>
+        <material><ambient>0.63 0.55 0.42 1</ambient><diffuse>0.65 0.57 0.44 1</diffuse></material>
+      </visual>
+      <visual name="roof"><pose>0 0 5.5 0 0 0</pose>
+        <geometry><box><size>21 101 1</size></box></geometry>
+        <material><ambient>0.40 0.33 0.26 1</ambient><diffuse>0.42 0.35 0.28 1</diffuse></material>
+      </visual>
+    </link><pose>-80 -80 5 0 0 0</pose></model>
+
+    <!-- Pierson College (east side of S quad) -->
+    <model name="pierson_college"><static>true</static><link name="link">
+      <collision name="c"><geometry><box><size>20 100 10</size></box></geometry><surface><friction><ode><mu>1.0</mu><mu2>1.0</mu2></ode></friction><contact><ode><kp>1e8</kp><kd>10.0</kd></ode></contact></surface></collision>
+      <visual name="walls"><geometry><box><size>20 100 10</size></box></geometry>
+        <material><ambient>0.66 0.58 0.44 1</ambient><diffuse>0.68 0.60 0.46 1</diffuse></material>
+      </visual>
+      <visual name="roof"><pose>0 0 5.5 0 0 0</pose>
+        <geometry><box><size>21 101 1</size></box></geometry>
+        <material><ambient>0.40 0.33 0.26 1</ambient><diffuse>0.42 0.35 0.28 1</diffuse></material>
+      </visual>
+    </link><pose>80 -80 5 0 0 0</pose></model>
+
+    <!-- Berkeley College (south face of S quad) -->
+    <model name="berkeley_college"><static>true</static><link name="link">
+      <collision name="c"><geometry><box><size>60 20 10</size></box></geometry><surface><friction><ode><mu>1.0</mu><mu2>1.0</mu2></ode></friction><contact><ode><kp>1e8</kp><kd>10.0</kd></ode></contact></surface></collision>
+      <visual name="walls"><geometry><box><size>60 20 10</size></box></geometry>
+        <material><ambient>0.64 0.56 0.43 1</ambient><diffuse>0.66 0.58 0.45 1</diffuse></material>
+      </visual>
+      <visual name="roof"><pose>0 0 5.5 0 0 0</pose>
+        <geometry><box><size>61 21 1</size></box></geometry>
+        <material><ambient>0.40 0.33 0.26 1</ambient><diffuse>0.42 0.35 0.28 1</diffuse></material>
+      </visual>
+    </link><pose>0 -130 5 0 0 0</pose></model>
+
+    <!-- ============ OUTER RING BUILDINGS ============ -->
+    <!-- Silliman College (far SW) -->
+    <model name="silliman_college"><static>true</static><link name="link">
+      <collision name="c"><geometry><box><size>35 25 10</size></box></geometry><surface><friction><ode><mu>1.0</mu><mu2>1.0</mu2></ode></friction><contact><ode><kp>1e8</kp><kd>10.0</kd></ode></contact></surface></collision>
+      <visual name="walls"><geometry><box><size>35 25 10</size></box></geometry>
+        <material><ambient>0.60 0.52 0.40 1</ambient><diffuse>0.62 0.54 0.42 1</diffuse></material>
+      </visual>
+      <visual name="roof"><pose>0 0 5.5 0 0 0</pose>
+        <geometry><box><size>36 26 1</size></box></geometry>
+        <material><ambient>0.38 0.30 0.23 1</ambient><diffuse>0.40 0.32 0.25 1</diffuse></material>
+      </visual>
+    </link><pose>-130 -130 5 0 0 0</pose></model>
+
+    <!-- Ezra Stiles College (south of center) -->
+    <model name="ezra_stiles_college"><static>true</static><link name="link">
+      <collision name="c"><geometry><box><size>30 20 9</size></box></geometry><surface><friction><ode><mu>1.0</mu><mu2>1.0</mu2></ode></friction><contact><ode><kp>1e8</kp><kd>10.0</kd></ode></contact></surface></collision>
+      <visual name="walls"><geometry><box><size>30 20 9</size></box></geometry>
+        <material><ambient>0.58 0.55 0.50 1</ambient><diffuse>0.60 0.57 0.52 1</diffuse></material>
+      </visual>
+      <visual name="roof"><pose>0 0 5 0 0 0</pose>
+        <geometry><box><size>31 21 1</size></box></geometry>
+        <material><ambient>0.40 0.36 0.30 1</ambient><diffuse>0.42 0.38 0.32 1</diffuse></material>
+      </visual>
+    </link><pose>-50 -130 4.5 0 0 0</pose></model>
+
+    <!-- Morse College (south of center, east side) -->
+    <model name="morse_college"><static>true</static><link name="link">
+      <collision name="c"><geometry><box><size>30 20 9</size></box></geometry><surface><friction><ode><mu>1.0</mu><mu2>1.0</mu2></ode></friction><contact><ode><kp>1e8</kp><kd>10.0</kd></ode></contact></surface></collision>
+      <visual name="walls"><geometry><box><size>30 20 9</size></box></geometry>
+        <material><ambient>0.58 0.55 0.50 1</ambient><diffuse>0.60 0.57 0.52 1</diffuse></material>
+      </visual>
+      <visual name="roof"><pose>0 0 5 0 0 0</pose>
+        <geometry><box><size>31 21 1</size></box></geometry>
+        <material><ambient>0.40 0.36 0.30 1</ambient><diffuse>0.42 0.38 0.32 1</diffuse></material>
+      </visual>
+    </link><pose>50 -130 4.5 0 0 0</pose></model>
+
+    <!-- Timothy Dwight College (SE corner) -->
+    <model name="timothy_dwight"><static>true</static><link name="link">
+      <collision name="c"><geometry><box><size>35 25 10</size></box></geometry><surface><friction><ode><mu>1.0</mu><mu2>1.0</mu2></ode></friction><contact><ode><kp>1e8</kp><kd>10.0</kd></ode></contact></surface></collision>
+      <visual name="walls"><geometry><box><size>35 25 10</size></box></geometry>
+        <material><ambient>0.62 0.55 0.42 1</ambient><diffuse>0.64 0.57 0.44 1</diffuse></material>
+      </visual>
+      <visual name="roof"><pose>0 0 5.5 0 0 0</pose>
+        <geometry><box><size>36 26 1</size></box></geometry>
+        <material><ambient>0.38 0.30 0.23 1</ambient><diffuse>0.40 0.32 0.25 1</diffuse></material>
+      </visual>
+    </link><pose>130 -130 5 0 0 0</pose></model>
+
+    <!-- Becton Engineering (east perimeter) -->
+    <model name="becton_engineering"><static>true</static><link name="link">
+      <collision name="c"><geometry><box><size>28 20 12</size></box></geometry><surface><friction><ode><mu>1.0</mu><mu2>1.0</mu2></ode></friction><contact><ode><kp>1e8</kp><kd>10.0</kd></ode></contact></surface></collision>
+      <visual name="walls"><geometry><box><size>28 20 12</size></box></geometry>
+        <material><ambient>0.45 0.48 0.52 1</ambient><diffuse>0.47 0.50 0.54 1</diffuse></material>
+      </visual>
+      <visual name="roof"><pose>0 0 6.5 0 0 0</pose>
+        <geometry><box><size>29 21 1</size></box></geometry>
+        <material><ambient>0.35 0.38 0.42 1</ambient><diffuse>0.37 0.40 0.44 1</diffuse></material>
+      </visual>
+    </link><pose>130 0 6 0 0 0</pose></model>
+
+    <!-- Watson Center (west perimeter, by York St) -->
+    <model name="watson_center"><static>true</static><link name="link">
+      <collision name="c"><geometry><box><size>30 22 10</size></box></geometry><surface><friction><ode><mu>1.0</mu><mu2>1.0</mu2></ode></friction><contact><ode><kp>1e8</kp><kd>10.0</kd></ode></contact></surface></collision>
+      <visual name="walls"><geometry><box><size>30 22 10</size></box></geometry>
+        <material><ambient>0.55 0.53 0.50 1</ambient><diffuse>0.57 0.55 0.52 1</diffuse></material>
+      </visual>
+      <visual name="roof"><pose>0 0 5.5 0 0 0</pose>
+        <geometry><box><size>31 23 1</size></box></geometry>
+        <material><ambient>0.40 0.38 0.36 1</ambient><diffuse>0.42 0.40 0.38 1</diffuse></material>
+      </visual>
+    </link><pose>-130 0 5 0 0 0</pose></model>
+
+    <!-- ===================================================
+         DELIVERY POINTS (at each residential college entrance)
+         ===================================================-->
+    <model name="delivery_A"><static>true</static><link name="link">
+      <collision name="c"><geometry><cylinder><radius>0.4</radius><length>1.5</length></cylinder></geometry><surface><friction><ode><mu>1.0</mu><mu2>1.0</mu2></ode></friction><contact><ode><kp>1e8</kp><kd>10.0</kd></ode></contact></surface></collision>
+      <visual name="pole"><geometry><cylinder><radius>0.4</radius><length>1.5</length></cylinder></geometry>
+        <material><ambient>0.0 0.85 0.1 1</ambient><diffuse>0.0 0.85 0.1 1</diffuse></material>
+      </visual>
+      <visual name="platform"><pose>0 0 -0.8 0 0 0</pose>
+        <geometry><cylinder><radius>1.2</radius><length>0.1</length></cylinder></geometry>
+        <material><ambient>0.0 0.5 0.05 1</ambient><diffuse>0.0 0.5 0.05 1</diffuse></material>
+      </visual>
+    </link><pose>-65 80 0.75 0 0 0</pose></model>
+
+    <model name="delivery_B"><static>true</static><link name="link">
+      <collision name="c"><geometry><cylinder><radius>0.4</radius><length>1.5</length></cylinder></geometry><surface><friction><ode><mu>1.0</mu><mu2>1.0</mu2></ode></friction><contact><ode><kp>1e8</kp><kd>10.0</kd></ode></contact></surface></collision>
+      <visual name="pole"><geometry><cylinder><radius>0.4</radius><length>1.5</length></cylinder></geometry>
+        <material><ambient>0.0 0.85 0.1 1</ambient><diffuse>0.0 0.85 0.1 1</diffuse></material>
+      </visual>
+      <visual name="platform"><pose>0 0 -0.8 0 0 0</pose>
+        <geometry><cylinder><radius>1.2</radius><length>0.1</length></cylinder></geometry>
+        <material><ambient>0.0 0.5 0.05 1</ambient><diffuse>0.0 0.5 0.05 1</diffuse></material>
+      </visual>
+    </link><pose>65 80 0.75 0 0 0</pose></model>
+
+    <model name="delivery_C"><static>true</static><link name="link">
+      <collision name="c"><geometry><cylinder><radius>0.4</radius><length>1.5</length></cylinder></geometry><surface><friction><ode><mu>1.0</mu><mu2>1.0</mu2></ode></friction><contact><ode><kp>1e8</kp><kd>10.0</kd></ode></contact></surface></collision>
+      <visual name="pole"><geometry><cylinder><radius>0.4</radius><length>1.5</length></cylinder></geometry>
+        <material><ambient>0.0 0.85 0.1 1</ambient><diffuse>0.0 0.85 0.1 1</diffuse></material>
+      </visual>
+      <visual name="platform"><pose>0 0 -0.8 0 0 0</pose>
+        <geometry><cylinder><radius>1.2</radius><length>0.1</length></cylinder></geometry>
+        <material><ambient>0.0 0.5 0.05 1</ambient><diffuse>0.0 0.5 0.05 1</diffuse></material>
+      </visual>
+    </link><pose>-65 -80 0.75 0 0 0</pose></model>
+
+    <model name="delivery_D"><static>true</static><link name="link">
+      <collision name="c"><geometry><cylinder><radius>0.4</radius><length>1.5</length></cylinder></geometry><surface><friction><ode><mu>1.0</mu><mu2>1.0</mu2></ode></friction><contact><ode><kp>1e8</kp><kd>10.0</kd></ode></contact></surface></collision>
+      <visual name="pole"><geometry><cylinder><radius>0.4</radius><length>1.5</length></cylinder></geometry>
+        <material><ambient>0.0 0.85 0.1 1</ambient><diffuse>0.0 0.85 0.1 1</diffuse></material>
+      </visual>
+      <visual name="platform"><pose>0 0 -0.8 0 0 0</pose>
+        <geometry><cylinder><radius>1.2</radius><length>0.1</length></cylinder></geometry>
+        <material><ambient>0.0 0.5 0.05 1</ambient><diffuse>0.0 0.5 0.05 1</diffuse></material>
+      </visual>
+    </link><pose>65 -80 0.75 0 0 0</pose></model>
+
+    <model name="delivery_E"><static>true</static><link name="link">
+      <collision name="c"><geometry><cylinder><radius>0.4</radius><length>1.5</length></cylinder></geometry><surface><friction><ode><mu>1.0</mu><mu2>1.0</mu2></ode></friction><contact><ode><kp>1e8</kp><kd>10.0</kd></ode></contact></surface></collision>
+      <visual name="pole"><geometry><cylinder><radius>0.4</radius><length>1.5</length></cylinder></geometry>
+        <material><ambient>0.0 0.85 0.1 1</ambient><diffuse>0.0 0.85 0.1 1</diffuse></material>
+      </visual>
+      <visual name="platform"><pose>0 0 -0.8 0 0 0</pose>
+        <geometry><cylinder><radius>1.2</radius><length>0.1</length></cylinder></geometry>
+        <material><ambient>0.0 0.5 0.05 1</ambient><diffuse>0.0 0.5 0.05 1</diffuse></material>
+      </visual>
+    </link><pose>115 -15 0.75 0 0 0</pose></model>
+
+    <!-- ===================================================
+         NO-GO ZONES (construction areas)
+         ===================================================-->
+    <model name="nogo_1"><static>true</static><link name="link">
+      <collision name="c"><geometry><box><size>18 14 0.15</size></box></geometry><surface><friction><ode><mu>1.0</mu><mu2>1.0</mu2></ode></friction><contact><ode><kp>1e8</kp><kd>10.0</kd></ode></contact></surface></collision>
+      <visual name="v"><geometry><box><size>18 14 0.15</size></box></geometry>
+        <material><ambient>0.85 0.1 0.1 1</ambient><diffuse>0.85 0.1 0.1 1</diffuse></material>
+      </visual>
+    </link><pose>-130 -70 0.075 0 0 0</pose></model>
+
+    <model name="nogo_2"><static>true</static><link name="link">
+      <collision name="c"><geometry><box><size>15 12 0.15</size></box></geometry><surface><friction><ode><mu>1.0</mu><mu2>1.0</mu2></ode></friction><contact><ode><kp>1e8</kp><kd>10.0</kd></ode></contact></surface></collision>
+      <visual name="v"><geometry><box><size>15 12 0.15</size></box></geometry>
+        <material><ambient>0.85 0.1 0.1 1</ambient><diffuse>0.85 0.1 0.1 1</diffuse></material>
+      </visual>
+    </link><pose>130 70 0.075 0 0 0</pose></model>
+
+    <!-- ===================================================
+         INLINE BENCHES (sprinkled on quad paths)
+         ===================================================-->
+    <model name="bench_1"><static>true</static><link name="link">
+      <collision name="c"><geometry><box><size>1.8 0.45 0.45</size></box></geometry><surface><friction><ode><mu>1.0</mu><mu2>1.0</mu2></ode></friction><contact><ode><kp>1e8</kp><kd>10.0</kd></ode></contact></surface></collision>
+      <visual name="seat"><geometry><box><size>1.8 0.45 0.08</size></box></geometry>
+        <material><ambient>0.45 0.30 0.15 1</ambient><diffuse>0.45 0.30 0.15 1</diffuse></material></visual>
+      <visual name="ll"><pose>-0.75 0 -0.2 0 0 0</pose><geometry><box><size>0.08 0.45 0.38</size></box></geometry>
+        <material><ambient>0.35 0.22 0.10 1</ambient><diffuse>0.35 0.22 0.10 1</diffuse></material></visual>
+      <visual name="rl"><pose>0.75 0 -0.2 0 0 0</pose><geometry><box><size>0.08 0.45 0.38</size></box></geometry>
+        <material><ambient>0.35 0.22 0.10 1</ambient><diffuse>0.35 0.22 0.10 1</diffuse></material></visual>
+    </link><pose>15 65 0.45 0 0 1.5707</pose></model>
+
+    <model name="bench_2"><static>true</static><link name="link">
+      <collision name="c"><geometry><box><size>1.8 0.45 0.45</size></box></geometry><surface><friction><ode><mu>1.0</mu><mu2>1.0</mu2></ode></friction><contact><ode><kp>1e8</kp><kd>10.0</kd></ode></contact></surface></collision>
+      <visual name="seat"><geometry><box><size>1.8 0.45 0.08</size></box></geometry>
+        <material><ambient>0.45 0.30 0.15 1</ambient><diffuse>0.45 0.30 0.15 1</diffuse></material></visual>
+      <visual name="ll"><pose>-0.75 0 -0.2 0 0 0</pose><geometry><box><size>0.08 0.45 0.38</size></box></geometry>
+        <material><ambient>0.35 0.22 0.10 1</ambient><diffuse>0.35 0.22 0.10 1</diffuse></material></visual>
+      <visual name="rl"><pose>0.75 0 -0.2 0 0 0</pose><geometry><box><size>0.08 0.45 0.38</size></box></geometry>
+        <material><ambient>0.35 0.22 0.10 1</ambient><diffuse>0.35 0.22 0.10 1</diffuse></material></visual>
+    </link><pose>-15 65 0.45 0 0 1.5707</pose></model>
+
+    <model name="bench_3"><static>true</static><link name="link">
+      <collision name="c"><geometry><box><size>1.8 0.45 0.45</size></box></geometry><surface><friction><ode><mu>1.0</mu><mu2>1.0</mu2></ode></friction><contact><ode><kp>1e8</kp><kd>10.0</kd></ode></contact></surface></collision>
+      <visual name="seat"><geometry><box><size>1.8 0.45 0.08</size></box></geometry>
+        <material><ambient>0.45 0.30 0.15 1</ambient><diffuse>0.45 0.30 0.15 1</diffuse></material></visual>
+      <visual name="ll"><pose>-0.75 0 -0.2 0 0 0</pose><geometry><box><size>0.08 0.45 0.38</size></box></geometry>
+        <material><ambient>0.35 0.22 0.10 1</ambient><diffuse>0.35 0.22 0.10 1</diffuse></material></visual>
+      <visual name="rl"><pose>0.75 0 -0.2 0 0 0</pose><geometry><box><size>0.08 0.45 0.38</size></box></geometry>
+        <material><ambient>0.35 0.22 0.10 1</ambient><diffuse>0.35 0.22 0.10 1</diffuse></material></visual>
+    </link><pose>15 -65 0.45 0 0 1.5707</pose></model>
+
+    <model name="bench_4"><static>true</static><link name="link">
+      <collision name="c"><geometry><box><size>1.8 0.45 0.45</size></box></geometry><surface><friction><ode><mu>1.0</mu><mu2>1.0</mu2></ode></friction><contact><ode><kp>1e8</kp><kd>10.0</kd></ode></contact></surface></collision>
+      <visual name="seat"><geometry><box><size>1.8 0.45 0.08</size></box></geometry>
+        <material><ambient>0.45 0.30 0.15 1</ambient><diffuse>0.45 0.30 0.15 1</diffuse></material></visual>
+      <visual name="ll"><pose>-0.75 0 -0.2 0 0 0</pose><geometry><box><size>0.08 0.45 0.38</size></box></geometry>
+        <material><ambient>0.35 0.22 0.10 1</ambient><diffuse>0.35 0.22 0.10 1</diffuse></material></visual>
+      <visual name="rl"><pose>0.75 0 -0.2 0 0 0</pose><geometry><box><size>0.08 0.45 0.38</size></box></geometry>
+        <material><ambient>0.35 0.22 0.10 1</ambient><diffuse>0.35 0.22 0.10 1</diffuse></material></visual>
+    </link><pose>-15 -65 0.45 0 0 1.5707</pose></model>
+
+    <model name="bench_5"><static>true</static><link name="link">
+      <collision name="c"><geometry><box><size>1.8 0.45 0.45</size></box></geometry><surface><friction><ode><mu>1.0</mu><mu2>1.0</mu2></ode></friction><contact><ode><kp>1e8</kp><kd>10.0</kd></ode></contact></surface></collision>
+      <visual name="seat"><geometry><box><size>1.8 0.45 0.08</size></box></geometry>
+        <material><ambient>0.45 0.30 0.15 1</ambient><diffuse>0.45 0.30 0.15 1</diffuse></material></visual>
+      <visual name="ll"><pose>-0.75 0 -0.2 0 0 0</pose><geometry><box><size>0.08 0.45 0.38</size></box></geometry>
+        <material><ambient>0.35 0.22 0.10 1</ambient><diffuse>0.35 0.22 0.10 1</diffuse></material></visual>
+      <visual name="rl"><pose>0.75 0 -0.2 0 0 0</pose><geometry><box><size>0.08 0.45 0.38</size></box></geometry>
+        <material><ambient>0.35 0.22 0.10 1</ambient><diffuse>0.35 0.22 0.10 1</diffuse></material></visual>
+    </link><pose>12 8 0.45 0 0 0</pose></model>
+
+    <model name="bench_6"><static>true</static><link name="link">
+      <collision name="c"><geometry><box><size>1.8 0.45 0.45</size></box></geometry><surface><friction><ode><mu>1.0</mu><mu2>1.0</mu2></ode></friction><contact><ode><kp>1e8</kp><kd>10.0</kd></ode></contact></surface></collision>
+      <visual name="seat"><geometry><box><size>1.8 0.45 0.08</size></box></geometry>
+        <material><ambient>0.45 0.30 0.15 1</ambient><diffuse>0.45 0.30 0.15 1</diffuse></material></visual>
+      <visual name="ll"><pose>-0.75 0 -0.2 0 0 0</pose><geometry><box><size>0.08 0.45 0.38</size></box></geometry>
+        <material><ambient>0.35 0.22 0.10 1</ambient><diffuse>0.35 0.22 0.10 1</diffuse></material></visual>
+      <visual name="rl"><pose>0.75 0 -0.2 0 0 0</pose><geometry><box><size>0.08 0.45 0.38</size></box></geometry>
+        <material><ambient>0.35 0.22 0.10 1</ambient><diffuse>0.35 0.22 0.10 1</diffuse></material></visual>
+    </link><pose>-12 -8 0.45 0 0 0</pose></model>
+
+    <!-- ===================================================
+         INLINE TRASH CANS
+         ===================================================-->
+    <model name="tc_1"><static>true</static><link name="link">
+      <collision name="c"><geometry><cylinder><radius>0.22</radius><length>0.7</length></cylinder></geometry><surface><friction><ode><mu>1.0</mu><mu2>1.0</mu2></ode></friction><contact><ode><kp>1e8</kp><kd>10.0</kd></ode></contact></surface></collision>
+      <visual name="b"><geometry><cylinder><radius>0.22</radius><length>0.7</length></cylinder></geometry>
+        <material><ambient>0.18 0.18 0.20 1</ambient><diffuse>0.18 0.18 0.20 1</diffuse></material></visual>
+      <visual name="lid"><pose>0 0 0.38 0 0 0</pose><geometry><cylinder><radius>0.23</radius><length>0.06</length></cylinder></geometry>
+        <material><ambient>0.12 0.12 0.15 1</ambient><diffuse>0.12 0.12 0.15 1</diffuse></material></visual>
+    </link><pose>16 65 0.35 0 0 0</pose></model>
+
+    <model name="tc_2"><static>true</static><link name="link">
+      <collision name="c"><geometry><cylinder><radius>0.22</radius><length>0.7</length></cylinder></geometry><surface><friction><ode><mu>1.0</mu><mu2>1.0</mu2></ode></friction><contact><ode><kp>1e8</kp><kd>10.0</kd></ode></contact></surface></collision>
+      <visual name="b"><geometry><cylinder><radius>0.22</radius><length>0.7</length></cylinder></geometry>
+        <material><ambient>0.18 0.18 0.20 1</ambient><diffuse>0.18 0.18 0.20 1</diffuse></material></visual>
+      <visual name="lid"><pose>0 0 0.38 0 0 0</pose><geometry><cylinder><radius>0.23</radius><length>0.06</length></cylinder></geometry>
+        <material><ambient>0.12 0.12 0.15 1</ambient><diffuse>0.12 0.12 0.15 1</diffuse></material></visual>
+    </link><pose>-16 -65 0.35 0 0 0</pose></model>
+
+    <model name="tc_3"><static>true</static><link name="link">
+      <collision name="c"><geometry><cylinder><radius>0.22</radius><length>0.7</length></cylinder></geometry><surface><friction><ode><mu>1.0</mu><mu2>1.0</mu2></ode></friction><contact><ode><kp>1e8</kp><kd>10.0</kd></ode></contact></surface></collision>
+      <visual name="b"><geometry><cylinder><radius>0.22</radius><length>0.7</length></cylinder></geometry>
+        <material><ambient>0.18 0.18 0.20 1</ambient><diffuse>0.18 0.18 0.20 1</diffuse></material></visual>
+      <visual name="lid"><pose>0 0 0.38 0 0 0</pose><geometry><cylinder><radius>0.23</radius><length>0.06</length></cylinder></geometry>
+        <material><ambient>0.12 0.12 0.15 1</ambient><diffuse>0.12 0.12 0.15 1</diffuse></material></visual>
+    </link><pose>110 8 0.35 0 0 0</pose></model>
+
+    <model name="tc_4"><static>true</static><link name="link">
+      <collision name="c"><geometry><cylinder><radius>0.22</radius><length>0.7</length></cylinder></geometry><surface><friction><ode><mu>1.0</mu><mu2>1.0</mu2></ode></friction><contact><ode><kp>1e8</kp><kd>10.0</kd></ode></contact></surface></collision>
+      <visual name="b"><geometry><cylinder><radius>0.22</radius><length>0.7</length></cylinder></geometry>
+        <material><ambient>0.18 0.18 0.20 1</ambient><diffuse>0.18 0.18 0.20 1</diffuse></material></visual>
+      <visual name="lid"><pose>0 0 0.38 0 0 0</pose><geometry><cylinder><radius>0.23</radius><length>0.06</length></cylinder></geometry>
+        <material><ambient>0.12 0.12 0.15 1</ambient><diffuse>0.12 0.12 0.15 1</diffuse></material></visual>
+    </link><pose>-110 -8 0.35 0 0 0</pose></model>
+
+    <!-- ===================================================
+         FUEL MODELS - trees, lamps, signs, cars, hydrants
+         ===================================================-->
+
+    <!-- OAK TREES lining the main quads (on grass, NOT on paths) -->
+    <include><uri>https://fuel.gazebosim.org/1.0/OpenRobotics/models/Oak tree</uri><name>oak_1</name><pose>30 90 0 0 0 0.5</pose></include>
+    <include><uri>https://fuel.gazebosim.org/1.0/OpenRobotics/models/Oak tree</uri><name>oak_2</name><pose>-30 90 0 0 0 1.2</pose></include>
+    <include><uri>https://fuel.gazebosim.org/1.0/OpenRobotics/models/Oak tree</uri><name>oak_3</name><pose>30 70 0 0 0 2.1</pose></include>
+    <include><uri>https://fuel.gazebosim.org/1.0/OpenRobotics/models/Oak tree</uri><name>oak_4</name><pose>-30 70 0 0 0 0.8</pose></include>
+    <include><uri>https://fuel.gazebosim.org/1.0/OpenRobotics/models/Oak tree</uri><name>oak_5</name><pose>50 90 0 0 0 1.8</pose></include>
+    <include><uri>https://fuel.gazebosim.org/1.0/OpenRobotics/models/Oak tree</uri><name>oak_6</name><pose>-50 90 0 0 0 2.5</pose></include>
+    <include><uri>https://fuel.gazebosim.org/1.0/OpenRobotics/models/Oak tree</uri><name>oak_7</name><pose>50 70 0 0 0 0.3</pose></include>
+    <include><uri>https://fuel.gazebosim.org/1.0/OpenRobotics/models/Oak tree</uri><name>oak_8</name><pose>-50 70 0 0 0 1.5</pose></include>
+
+    <include><uri>https://fuel.gazebosim.org/1.0/OpenRobotics/models/Oak tree</uri><name>oak_9</name><pose>30 -90 0 0 0 0.9</pose></include>
+    <include><uri>https://fuel.gazebosim.org/1.0/OpenRobotics/models/Oak tree</uri><name>oak_10</name><pose>-30 -90 0 0 0 2.2</pose></include>
+    <include><uri>https://fuel.gazebosim.org/1.0/OpenRobotics/models/Oak tree</uri><name>oak_11</name><pose>30 -70 0 0 0 1.1</pose></include>
+    <include><uri>https://fuel.gazebosim.org/1.0/OpenRobotics/models/Oak tree</uri><name>oak_12</name><pose>-30 -70 0 0 0 2.8</pose></include>
+    <include><uri>https://fuel.gazebosim.org/1.0/OpenRobotics/models/Oak tree</uri><name>oak_13</name><pose>50 -90 0 0 0 0.4</pose></include>
+    <include><uri>https://fuel.gazebosim.org/1.0/OpenRobotics/models/Oak tree</uri><name>oak_14</name><pose>-50 -90 0 0 0 1.7</pose></include>
+    <include><uri>https://fuel.gazebosim.org/1.0/OpenRobotics/models/Oak tree</uri><name>oak_15</name><pose>50 -70 0 0 0 2.3</pose></include>
+    <include><uri>https://fuel.gazebosim.org/1.0/OpenRobotics/models/Oak tree</uri><name>oak_16</name><pose>-50 -70 0 0 0 0.6</pose></include>
+
+    <!-- Oak trees near cross campus street -->
+    <include><uri>https://fuel.gazebosim.org/1.0/OpenRobotics/models/Oak tree</uri><name>oak_17</name><pose>25 10 0 0 0 0.2</pose></include>
+    <include><uri>https://fuel.gazebosim.org/1.0/OpenRobotics/models/Oak tree</uri><name>oak_18</name><pose>-25 10 0 0 0 1.3</pose></include>
+    <include><uri>https://fuel.gazebosim.org/1.0/OpenRobotics/models/Oak tree</uri><name>oak_19</name><pose>25 -10 0 0 0 2.4</pose></include>
+    <include><uri>https://fuel.gazebosim.org/1.0/OpenRobotics/models/Oak tree</uri><name>oak_20</name><pose>-25 -10 0 0 0 0.7</pose></include>
+    <include><uri>https://fuel.gazebosim.org/1.0/OpenRobotics/models/Oak tree</uri><name>oak_21</name><pose>105 10 0 0 0 1.8</pose></include>
+    <include><uri>https://fuel.gazebosim.org/1.0/OpenRobotics/models/Oak tree</uri><name>oak_22</name><pose>-105 10 0 0 0 2.9</pose></include>
+
+    <!-- PINE TREES along perimeter streets -->
+    <include><uri>https://fuel.gazebosim.org/1.0/OpenRobotics/models/Pine Tree</uri><name>pine_1</name><pose>50 142 0 0 0 0</pose></include>
+    <include><uri>https://fuel.gazebosim.org/1.0/OpenRobotics/models/Pine Tree</uri><name>pine_2</name><pose>-50 142 0 0 0 1.0</pose></include>
+    <include><uri>https://fuel.gazebosim.org/1.0/OpenRobotics/models/Pine Tree</uri><name>pine_3</name><pose>100 142 0 0 0 2.0</pose></include>
+    <include><uri>https://fuel.gazebosim.org/1.0/OpenRobotics/models/Pine Tree</uri><name>pine_4</name><pose>-100 142 0 0 0 0.7</pose></include>
+    <include><uri>https://fuel.gazebosim.org/1.0/OpenRobotics/models/Pine Tree</uri><name>pine_5</name><pose>50 -142 0 0 0 1.3</pose></include>
+    <include><uri>https://fuel.gazebosim.org/1.0/OpenRobotics/models/Pine Tree</uri><name>pine_6</name><pose>-50 -142 0 0 0 2.6</pose></include>
+    <include><uri>https://fuel.gazebosim.org/1.0/OpenRobotics/models/Pine Tree</uri><name>pine_7</name><pose>100 -142 0 0 0 0.4</pose></include>
+    <include><uri>https://fuel.gazebosim.org/1.0/OpenRobotics/models/Pine Tree</uri><name>pine_8</name><pose>-100 -142 0 0 0 1.9</pose></include>
+    <include><uri>https://fuel.gazebosim.org/1.0/OpenRobotics/models/Pine Tree</uri><name>pine_9</name><pose>160 50 0 0 0 0.2</pose></include>
+    <include><uri>https://fuel.gazebosim.org/1.0/OpenRobotics/models/Pine Tree</uri><name>pine_10</name><pose>160 -50 0 0 0 2.4</pose></include>
+    <include><uri>https://fuel.gazebosim.org/1.0/OpenRobotics/models/Pine Tree</uri><name>pine_11</name><pose>-160 50 0 0 0 1.6</pose></include>
+    <include><uri>https://fuel.gazebosim.org/1.0/OpenRobotics/models/Pine Tree</uri><name>pine_12</name><pose>-160 -50 0 0 0 0.8</pose></include>
+
+    <!-- LAMP POSTS along sidewalks / main paths -->
+    <include><uri>https://fuel.gazebosim.org/1.0/OpenRobotics/models/Lamp Post</uri><name>lamp_1</name><pose>20 7 0 0 0 0</pose></include>
+    <include><uri>https://fuel.gazebosim.org/1.0/OpenRobotics/models/Lamp Post</uri><name>lamp_2</name><pose>-20 7 0 0 0 0</pose></include>
+    <include><uri>https://fuel.gazebosim.org/1.0/OpenRobotics/models/Lamp Post</uri><name>lamp_3</name><pose>50 7 0 0 0 0</pose></include>
+    <include><uri>https://fuel.gazebosim.org/1.0/OpenRobotics/models/Lamp Post</uri><name>lamp_4</name><pose>-50 7 0 0 0 0</pose></include>
+    <include><uri>https://fuel.gazebosim.org/1.0/OpenRobotics/models/Lamp Post</uri><name>lamp_5</name><pose>100 7 0 0 0 0</pose></include>
+    <include><uri>https://fuel.gazebosim.org/1.0/OpenRobotics/models/Lamp Post</uri><name>lamp_6</name><pose>-100 7 0 0 0 0</pose></include>
+    <include><uri>https://fuel.gazebosim.org/1.0/OpenRobotics/models/Lamp Post</uri><name>lamp_7</name><pose>20 -7 0 0 0 0</pose></include>
+    <include><uri>https://fuel.gazebosim.org/1.0/OpenRobotics/models/Lamp Post</uri><name>lamp_8</name><pose>-20 -7 0 0 0 0</pose></include>
+    <include><uri>https://fuel.gazebosim.org/1.0/OpenRobotics/models/Lamp Post</uri><name>lamp_9</name><pose>50 -7 0 0 0 0</pose></include>
+    <include><uri>https://fuel.gazebosim.org/1.0/OpenRobotics/models/Lamp Post</uri><name>lamp_10</name><pose>-50 -7 0 0 0 0</pose></include>
+
+    <!-- Lamps along perimeter sidewalks -->
+    <include><uri>https://fuel.gazebosim.org/1.0/OpenRobotics/models/Lamp Post</uri><name>lamp_11</name><pose>30 143 0 0 0 0</pose></include>
+    <include><uri>https://fuel.gazebosim.org/1.0/OpenRobotics/models/Lamp Post</uri><name>lamp_12</name><pose>-30 143 0 0 0 0</pose></include>
+    <include><uri>https://fuel.gazebosim.org/1.0/OpenRobotics/models/Lamp Post</uri><name>lamp_13</name><pose>80 143 0 0 0 0</pose></include>
+    <include><uri>https://fuel.gazebosim.org/1.0/OpenRobotics/models/Lamp Post</uri><name>lamp_14</name><pose>-80 143 0 0 0 0</pose></include>
+    <include><uri>https://fuel.gazebosim.org/1.0/OpenRobotics/models/Lamp Post</uri><name>lamp_15</name><pose>30 -143 0 0 0 0</pose></include>
+    <include><uri>https://fuel.gazebosim.org/1.0/OpenRobotics/models/Lamp Post</uri><name>lamp_16</name><pose>-30 -143 0 0 0 0</pose></include>
+    <include><uri>https://fuel.gazebosim.org/1.0/OpenRobotics/models/Lamp Post</uri><name>lamp_17</name><pose>167 40 0 0 0 0</pose></include>
+    <include><uri>https://fuel.gazebosim.org/1.0/OpenRobotics/models/Lamp Post</uri><name>lamp_18</name><pose>-167 -40 0 0 0 0</pose></include>
+
+    <!-- STOP SIGNS at intersections -->
+    <include><uri>https://fuel.gazebosim.org/1.0/OpenRobotics/models/Stop Sign</uri><name>stop_1</name><pose>8 8 0 0 0 0.785</pose></include>
+    <include><uri>https://fuel.gazebosim.org/1.0/OpenRobotics/models/Stop Sign</uri><name>stop_2</name><pose>-8 -8 0 0 0 3.927</pose></include>
+    <include><uri>https://fuel.gazebosim.org/1.0/OpenRobotics/models/Stop Sign</uri><name>stop_3</name><pose>8 -8 0 0 0 2.356</pose></include>
+    <include><uri>https://fuel.gazebosim.org/1.0/OpenRobotics/models/Stop Sign</uri><name>stop_4</name><pose>-8 8 0 0 0 5.498</pose></include>
+    <include><uri>https://fuel.gazebosim.org/1.0/OpenRobotics/models/Stop Sign</uri><name>stop_5</name><pose>160 8 0 0 0 0</pose></include>
+    <include><uri>https://fuel.gazebosim.org/1.0/OpenRobotics/models/Stop Sign</uri><name>stop_6</name><pose>-160 -8 0 0 0 3.14</pose></include>
+
+    <!-- FIRE HYDRANTS on sidewalk edges -->
+    <include><uri>https://fuel.gazebosim.org/1.0/OpenRobotics/models/Fire Hydrant</uri><name>hyd_1</name><pose>40 7.5 0 0 0 0</pose></include>
+    <include><uri>https://fuel.gazebosim.org/1.0/OpenRobotics/models/Fire Hydrant</uri><name>hyd_2</name><pose>-40 -7.5 0 0 0 0</pose></include>
+    <include><uri>https://fuel.gazebosim.org/1.0/OpenRobotics/models/Fire Hydrant</uri><name>hyd_3</name><pose>90 7.5 0 0 0 0</pose></include>
+    <include><uri>https://fuel.gazebosim.org/1.0/OpenRobotics/models/Fire Hydrant</uri><name>hyd_4</name><pose>-90 -7.5 0 0 0 0</pose></include>
+    <include><uri>https://fuel.gazebosim.org/1.0/OpenRobotics/models/Fire Hydrant</uri><name>hyd_5</name><pose>150 40 0 0 0 0</pose></include>
+    <include><uri>https://fuel.gazebosim.org/1.0/OpenRobotics/models/Fire Hydrant</uri><name>hyd_6</name><pose>-150 -40 0 0 0 0</pose></include>
+
+    <!-- MAILBOXES on sidewalks -->
+    <include><uri>https://fuel.gazebosim.org/1.0/OpenRobotics/models/Mailbox</uri><name>mail_1</name><pose>14 7 0 0 0 0</pose></include>
+    <include><uri>https://fuel.gazebosim.org/1.0/OpenRobotics/models/Mailbox</uri><name>mail_2</name><pose>-14 -7 0 0 0 3.14</pose></include>
+    <include><uri>https://fuel.gazebosim.org/1.0/OpenRobotics/models/Mailbox</uri><name>mail_3</name><pose>70 143 0 0 0 1.57</pose></include>
+    <include><uri>https://fuel.gazebosim.org/1.0/OpenRobotics/models/Mailbox</uri><name>mail_4</name><pose>-70 -143 0 0 0 1.57</pose></include>
+
+    <!-- DUMPSTERS near residential colleges -->
+    <include><uri>https://fuel.gazebosim.org/1.0/OpenRobotics/models/Dumpster</uri><name>dump_1</name><pose>-75 115 0 0 0 0</pose></include>
+    <include><uri>https://fuel.gazebosim.org/1.0/OpenRobotics/models/Dumpster</uri><name>dump_2</name><pose>75 115 0 0 0 0</pose></include>
+    <include><uri>https://fuel.gazebosim.org/1.0/OpenRobotics/models/Dumpster</uri><name>dump_3</name><pose>-75 -115 0 0 0 0</pose></include>
+    <include><uri>https://fuel.gazebosim.org/1.0/OpenRobotics/models/Dumpster</uri><name>dump_4</name><pose>75 -115 0 0 0 0</pose></include>
+
+    <!-- CARDBOARD BOXES at delivery points -->
+    <include><uri>https://fuel.gazebosim.org/1.0/OpenRobotics/models/Cardboard Box</uri><name>box_1</name><pose>-65 82 0 0 0 0.3</pose></include>
+    <include><uri>https://fuel.gazebosim.org/1.0/OpenRobotics/models/Cardboard Box</uri><name>box_2</name><pose>65 82 0 0 0 1.1</pose></include>
+    <include><uri>https://fuel.gazebosim.org/1.0/OpenRobotics/models/Cardboard Box</uri><name>box_3</name><pose>-65 -78 0 0 0 0.7</pose></include>
+    <include><uri>https://fuel.gazebosim.org/1.0/OpenRobotics/models/Cardboard Box</uri><name>box_4</name><pose>65 -78 0 0 0 2.1</pose></include>
+    <include><uri>https://fuel.gazebosim.org/1.0/OpenRobotics/models/Cardboard Box</uri><name>box_5</name><pose>115 -13 0 0 0 1.4</pose></include>
+
+    <!-- PARKED CARS along perimeter streets -->
+    <include><uri>https://fuel.gazebosim.org/1.0/OpenRobotics/models/Hatchback</uri><name>car_1</name><pose>40 146.5 0 0 0 0</pose></include>
+    <include><uri>https://fuel.gazebosim.org/1.0/OpenRobotics/models/Hatchback</uri><name>car_2</name><pose>70 146.5 0 0 0 0</pose></include>
+    <include><uri>https://fuel.gazebosim.org/1.0/OpenRobotics/models/Pickup</uri><name>car_3</name><pose>-40 153.5 0 0 0 3.14</pose></include>
+    <include><uri>https://fuel.gazebosim.org/1.0/OpenRobotics/models/Pickup</uri><name>car_4</name><pose>-70 153.5 0 0 0 3.14</pose></include>
+    <include><uri>https://fuel.gazebosim.org/1.0/OpenRobotics/models/Hatchback</uri><name>car_5</name><pose>40 -153.5 0 0 0 0</pose></include>
+    <include><uri>https://fuel.gazebosim.org/1.0/OpenRobotics/models/Pickup</uri><name>car_6</name><pose>-40 -146.5 0 0 0 3.14</pose></include>
+    <include><uri>https://fuel.gazebosim.org/1.0/OpenRobotics/models/Hatchback</uri><name>car_7</name><pose>166.5 40 0 0 0 1.5707</pose></include>
+    <include><uri>https://fuel.gazebosim.org/1.0/OpenRobotics/models/Pickup</uri><name>car_8</name><pose>173.5 -40 0 0 0 4.712</pose></include>
+    <include><uri>https://fuel.gazebosim.org/1.0/OpenRobotics/models/Hatchback</uri><name>car_9</name><pose>-166.5 -40 0 0 0 4.712</pose></include>
+    <include><uri>https://fuel.gazebosim.org/1.0/OpenRobotics/models/Pickup</uri><name>car_10</name><pose>-173.5 40 0 0 0 1.5707</pose></include>
+    <!-- Cars on cross campus street -->
+    <include><uri>https://fuel.gazebosim.org/1.0/OpenRobotics/models/Hatchback</uri><name>car_11</name><pose>40 -2.5 0 0 0 0</pose></include>
+    <include><uri>https://fuel.gazebosim.org/1.0/OpenRobotics/models/Pickup</uri><name>car_12</name><pose>-40 2.5 0 0 0 3.14</pose></include>
+
+  </world>
+</sdf>
