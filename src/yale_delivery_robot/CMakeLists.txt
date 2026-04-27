@@ -13,4 +13,10 @@ install(DIRECTORY
   DESTINATION share/${PROJECT_NAME}
 )
 
+install(PROGRAMS
+  scripts/waypoint_ui_node.py
+  DESTINATION lib/${PROJECT_NAME}
+  RENAME waypoint_ui_node
+)
+
 ament_package()

@@ -1,0 +1,164 @@
+# ============================================================
+# Yale Delivery Robot - Waypoints Configuration
+# House World Delivery Locations
+#
+# HOW TO GET COORDINATES:
+#   1. Launch Gazebo + Nav2
+#   2. In a terminal: ros2 topic echo /goal_pose --once
+#   3. Click Nav2 Goal in RViz at the desired location
+#   4. Copy x, y, qz, qw values into the waypoint below
+#   5. Repeat for each location
+# ============================================================
+
+waypoints:
+
+  entrance:
+    x: 3.056
+    y: -0.466
+    z: 0.0
+    qx: 0.0
+    qy: 0.0
+    qz: 0.987
+    qw: 0.162
+    description: "Main building entrance"
+    slow_approach: true
+
+  main_room:
+    x: -0.550
+    y: 0.447
+    z: 0.0
+    qx: 0.0
+    qy: 0.0
+    qz: 0.987
+    qw: 0.162
+    description: "Main room center"
+    slow_approach: false
+
+  top_left_room:
+    x: -4.10
+    y: 3.27 
+    z: 0.0
+    qx: 0.0
+    qy: 0.0
+    qz: 0.987
+    qw: 0.162
+    description: "Top left room"
+    slow_approach: false
+
+  bottom_left_room:
+    x: -4.42
+    y: -2.59
+    z: 0.0
+    qx: 0.0
+    qy: 0.0
+    qz: -0.573
+    qw: 0.82
+    description: "Bottom left room"
+    slow_approach: false
+
+  top_right_room:
+    x: 6.92
+    y: 3.502
+    z: 0.0
+    qx: 0.0
+    qy: 0.0
+    qz: -0.051
+    qw: 1.0
+    description: "Top right room"
+    slow_approach: false
+
+  bottom_right_room:
+    x: 7.653
+    y: -3.431
+    z: 0.0
+    qx: 0.0
+    qy: 0.0
+    qz: -0.573
+    qw: 0.82
+    description: "Bottom right room"
+    slow_approach: false
+
+  trash_can:
+    x: -2.16
+    y: 3.456
+    z: 0.0
+    qx: 0.0
+    qy: 0.0
+    qz: 1.0
+    qw: 0.004
+    description: "Trash can location"
+    slow_approach: true
+
+  trash_room:
+    x: 3.012
+    y: 2.23
+    z: 0.0
+    qx: 0.0
+    qy: 0.0
+    qz: -0.0573
+    qw: 0.82
+    description: "Trash room"
+    slow_approach: true
+
+# ============================================================
+# DELIVERY ROUTES
+# List waypoints in order the robot should visit them
+# ============================================================
+
+routes:
+
+  # Full delivery loop - visits all rooms
+  full_loop:
+    - entrance
+    - main_room
+    - top_left_room
+    - top_right_room
+    - bottom_right_room
+    - bottom_left_room
+    - trash_room
+    - trash_can
+    - entrance      # return home
+
+  # Left wing only
+  left_wing:
+    - entrance
+    - main_room
+    - top_left_room
+    - bottom_left_room
+    - entrance
+
+  # Right wing only
+  right_wing:
+    - entrance
+    - main_room
+    - top_right_room
+    - bottom_right_room
+    - entrance
+
+  # Trash collection run
+  trash_run:
+    - entrance
+    - trash_can
+    - trash_room
+    - entrance
+
+  # Express - main room only
+  express:
+    - entrance
+    - main_room
+    - entrance
+
+# ============================================================
+# HOME / DOCK POSITION
+# Where the robot returns to when idle
+# ============================================================
+
+home:
+  x: 1.21
+  y: 0.464
+  z: 0.0
+  qx: 0.0
+  qy: 0.0
+  qz: 0.987
+  qw: 0.162
+  description: "Home / docking station"
