@@ -15,8 +15,8 @@ install(DIRECTORY
 
 install(PROGRAMS
   scripts/waypoint_ui_node.py
+  scripts/pedestrian_safety_node.py
   DESTINATION lib/${PROJECT_NAME}
-  RENAME waypoint_ui_node
 )
 
 ament_package()
