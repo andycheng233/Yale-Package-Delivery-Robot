@@ -16,6 +16,9 @@ install(DIRECTORY
 install(PROGRAMS
   scripts/waypoint_ui_node.py
   scripts/pedestrian_safety_node.py
+  scripts/test_yolo.py
+  scripts/test_depth.py
+  scripts/set_initial_pose.py
   DESTINATION lib/${PROJECT_NAME}
 )
 

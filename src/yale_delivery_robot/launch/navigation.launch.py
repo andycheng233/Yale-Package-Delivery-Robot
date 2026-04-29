@@ -11,7 +11,7 @@
 import os
 from ament_index_python.packages import get_package_share_directory
 from launch import LaunchDescription
-from launch.actions import DeclareLaunchArgument, IncludeLaunchDescription
+from launch.actions import DeclareLaunchArgument, IncludeLaunchDescription, ExecuteProcess, TimerAction
 from launch.launch_description_sources import PythonLaunchDescriptionSource
 from launch.substitutions import LaunchConfiguration
 from launch_ros.actions import Node
@@ -27,19 +27,16 @@ def generate_launch_description():
     # ── Launch arguments ─────────────────────────────────────────────────────
     use_sim_time = LaunchConfiguration('use_sim_time', default='true')
 
-    # Default map points to our maps folder
     map_dir = LaunchConfiguration(
         'map',
         default=os.path.join(pkg_dir, 'maps', 'map.yaml')
     )
 
-    # Default params point to our edited copy of the nav2 params
     param_dir = LaunchConfiguration(
         'params_file',
         default=os.path.join(pkg_dir, 'config', 'nav2_params.yaml')
     )
 
-    # RViz config — reuse turtlebot3's config, works fine for waffle
     rviz_config = os.path.join(
         tb3_nav_dir, 'rviz', 'tb3_navigation2.rviz'
     )
@@ -50,17 +47,13 @@ def generate_launch_description():
             os.path.join(nav2_bringup, 'launch', 'bringup_launch.py')
         ),
         launch_arguments={
-            'map':         map_dir,
+            'map': map_dir,
             'use_sim_time': use_sim_time,
             'params_file': param_dir,
         }.items(),
     )
 
     # ── Twist mux ─────────────────────────────────────────────────────────────
-    # Sits between Nav2 and the robot.
-    # Nav2 publishes to /cmd_vel_nav (priority 10)
-    # Pedestrian safety node publishes to /cmd_vel_safety (priority 100)
-    # twist_mux outputs the winner to /cmd_vel
     twist_mux = Node(
         package='twist_mux',
         executable='twist_mux',
@@ -79,6 +72,18 @@ def generate_launch_description():
         parameters=[{'use_sim_time': use_sim_time}],
         output='screen'
     )
+
+    # ── Auto initial pose for localization ───────────────────────────────────
+    auto_initial_pose = TimerAction(
+    period=5.0,
+    actions=[
+        Node(
+            package='yale_delivery_robot',
+            executable='set_initial_pose.py',
+            output='screen'
+        )
+    ]
+)
 
     return LaunchDescription([
         DeclareLaunchArgument(
@@ -99,4 +104,5 @@ def generate_launch_description():
         nav2,
         twist_mux,
         rviz,
+        auto_initial_pose,
     ])
