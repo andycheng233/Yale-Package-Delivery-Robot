@@ -1,0 +1,28 @@
+# ============================================================
+# Yale Delivery Robot - Speed Zones Configuration
+#
+# This file is intended for future implementation of location-based
+# speed control. Each speed zone will define a region of the map where
+# the robot should modify its velocity limits based on environmental
+# context, safety risk, or delivery behavior.
+#
+# Example uses:
+#   - Slow down near entrances, doorways, and narrow hallways
+#   - Slow down near pedestrian-heavy areas
+#   - Use normal speed in open rooms or clear corridors
+#   - Stop or enter caution mode near restricted or unsafe regions
+#   - Apply different velocity limits for pickup/dropoff zones
+#
+# Each zone should define:
+#   - A unique zone name
+#   - A geometric region in the map frame
+#   - A maximum linear velocity
+#   - A maximum angular velocity
+#   - Optional behavior flags such as stop_required, slow_approach,
+#     pedestrian_caution, or delivery_zone
+#
+# This file is not fully active in the current system. It is included
+# as a future extension so the delivery manager or safety layer can
+# dynamically adjust Nav2/controller velocity limits depending on the
+# robot's current map location.
+# ============================================================

@@ -3,27 +3,33 @@
 Yale Delivery Robot - Waypoint UI Node
 ---------------------------------------
 - Single goals  → /goal_pose (PoseStamped)
-- Routes        → /waypoints (nav2_msgs/msg/WaypointFollowerResult via action)
-                  Falls back to sequential /goal_pose with status monitoring
+- Routes        → sequential /goal_pose with status monitoring
 - Status        → /behavior_tree_log (most reliable in Nav2 Jazzy)
 - Cancel        → /navigate_to_pose/_action/cancel_goal service
 - Pose          → /amcl_pose (better than odom, uses localization)
+- Camera        → /pedestrian_debug_image (YOLO-annotated, streamed as MJPEG)
 
 Open http://localhost:8765 in browser.
 """
 
 import os, json, yaml, math, threading, time
 from http.server import HTTPServer, BaseHTTPRequestHandler
+from socketserver import ThreadingMixIn
 from ament_index_python.packages import get_package_share_directory
+
+import cv2
+import numpy as np
 
 import rclpy
 from rclpy.node import Node
 from rclpy.qos import QoSProfile, ReliabilityPolicy, DurabilityPolicy, HistoryPolicy
 
-from geometry_msgs.msg import PoseStamped, PoseArray, Pose
+from geometry_msgs.msg import PoseStamped
 from geometry_msgs.msg import PoseWithCovarianceStamped
 from nav2_msgs.msg import BehaviorTreeLog
 from action_msgs.srv import CancelGoal
+from sensor_msgs.msg import Image
+from cv_bridge import CvBridge
 
 HTTP_PORT = 8765
 
@@ -54,18 +60,22 @@ class WaypointUINode(Node):
         self._route_thread   = None
         self._route_cancel   = threading.Event()
         self._route_name     = None
-        self._route_progress = []   # list of (stop, status) for UI
+        self._route_progress = []
         self._lock           = threading.Lock()
+
+        # ── Camera state ──────────────────────────────────────────────────────
+        self._bridge        = CvBridge()
+        self._latest_frame  = None          # raw JPEG bytes
+        self._frame_lock    = threading.Lock()
+        self._frame_event   = threading.Event()
 
         # ── Publishers ────────────────────────────────────────────────────────
         self._goal_pub = self.create_publisher(PoseStamped, '/goal_pose', 10)
 
         # ── Subscribers ───────────────────────────────────────────────────────
-        # AMCL pose (localization estimate — much better than odom)
         self.create_subscription(
             PoseWithCovarianceStamped, '/amcl_pose', self._amcl_cb, 10)
 
-        # Behavior tree log — most reliable status source in Nav2 Jazzy
         bt_qos = QoSProfile(
             reliability=ReliabilityPolicy.RELIABLE,
             durability=DurabilityPolicy.VOLATILE,
@@ -74,6 +84,15 @@ class WaypointUINode(Node):
         self.create_subscription(
             BehaviorTreeLog, '/behavior_tree_log', self._bt_log_cb, bt_qos)
 
+        # Pedestrian debug image — raw BGR8 published by PedestrianSafetyNode
+        debug_qos = QoSProfile(
+            reliability=ReliabilityPolicy.BEST_EFFORT,
+            durability=DurabilityPolicy.VOLATILE,
+            history=HistoryPolicy.KEEP_LAST,
+            depth=1)
+        self.create_subscription(
+            Image, '/pedestrian_debug_image', self._debug_image_cb, debug_qos)
+
         # Cancel service
         self._cancel_client = self.create_client(
             CancelGoal, '/navigate_to_pose/_action/cancel_goal')
@@ -81,8 +100,11 @@ class WaypointUINode(Node):
         self.get_logger().info(
             f'WaypointUINode ready — {len(self.waypoints)} waypoints, '
             f'{len(self.routes)} routes')
+        self.get_logger().info(
+            f'Camera stream → http://localhost:{HTTP_PORT}/stream')
 
     # ── Callbacks ─────────────────────────────────────────────────────────────
+
     def _amcl_cb(self, msg):
         p = msg.pose.pose
         q = p.orientation
@@ -95,20 +117,11 @@ class WaypointUINode(Node):
         }
 
     def _bt_log_cb(self, msg):
-        """
-        Observed Nav2 Jazzy success pattern:
-          NavigateWithReplanning: RUNNING -> SUCCESS
-          NavigateRecovery:       IDLE    -> SUCCESS  <- use this (fires last)
-
-        Failure: NavigateRecovery: IDLE -> FAILURE
-        Key: NavigateRecovery goes RUNNING->IDLE->SUCCESS not RUNNING->SUCCESS
-        """
         for event in msg.event_log:
             node = event.node_name
             prev = event.previous_status
             curr = event.current_status
 
-            # Success: NavigateRecovery IDLE -> SUCCESS
             if node == 'NavigateRecovery' and prev == 'IDLE' and curr == 'SUCCESS':
                 with self._lock:
                     self.get_logger().info(f'Goal reached: {self.current_goal}')
@@ -119,7 +132,6 @@ class WaypointUINode(Node):
                                 self._route_progress[i] = (stop, 'done')
                                 break
 
-            # Failure: NavigateRecovery IDLE -> FAILURE
             elif node == 'NavigateRecovery' and prev == 'IDLE' and curr == 'FAILURE':
                 with self._lock:
                     self.get_logger().warn(f'Goal failed: {self.current_goal}')
@@ -130,7 +142,26 @@ class WaypointUINode(Node):
                                 self._route_progress[i] = (stop, 'failed')
                                 break
 
+    def _debug_image_cb(self, msg: Image):
+        """
+        Convert sensor_msgs/Image (bgr8) → JPEG bytes and store for MJPEG stream.
+        PedestrianSafetyNode publishes bgr8; cv_bridge handles the conversion.
+        """
+        try:
+            frame = self._bridge.imgmsg_to_cv2(msg, desired_encoding='bgr8')
+            ok, buf = cv2.imencode(
+                '.jpg', frame,
+                [cv2.IMWRITE_JPEG_QUALITY, 80])   # 80 = good quality / low latency
+            if ok:
+                with self._frame_lock:
+                    self._latest_frame = buf.tobytes()
+                self._frame_event.set()
+        except Exception as e:
+            self.get_logger().warn(
+                f'Debug image encode error: {e}', throttle_duration_sec=5.0)
+
     # ── Navigation ────────────────────────────────────────────────────────────
+
     def _make_pose(self, wp: dict) -> PoseStamped:
         p = PoseStamped()
         p.header.frame_id    = 'map'
@@ -145,49 +176,37 @@ class WaypointUINode(Node):
         return p
 
     def send_goal(self, name: str) -> dict:
-        """Send single waypoint goal."""
         if name not in self.waypoints:
             return {'ok': False, 'error': f'Unknown waypoint: {name}'}
-
         with self._lock:
             self.nav_status   = 'NAVIGATING'
             self.current_goal = name
-
         self._goal_pub.publish(self._make_pose(self.waypoints[name]))
         self.get_logger().info(f'Goal → {name}')
         return {'ok': True, 'target': name}
 
     def cancel_goal(self) -> dict:
-        """Cancel active goal and any running route."""
-        # Signal route thread to stop
         self._route_cancel.set()
-
         with self._lock:
-            self.nav_status   = 'IDLE'
-            self.current_goal = None
-            self._route_name  = None
+            self.nav_status      = 'IDLE'
+            self.current_goal    = None
+            self._route_name     = None
             self._route_progress = []
-
-        # Try the cancel service
         if self._cancel_client.wait_for_service(timeout_sec=0.5):
             self._cancel_client.call_async(CancelGoal.Request())
             self.get_logger().info('Cancellation sent')
         else:
             self.get_logger().warn('Cancel service unavailable')
-
         return {'ok': True}
 
     def run_route(self, route_name: str) -> dict:
-        """Run a full route — sequential goals, waits for each to finish."""
         if route_name not in self.routes:
             return {'ok': False, 'error': f'Unknown route: {route_name}'}
-
         if self._route_thread and self._route_thread.is_alive():
             return {'ok': False, 'error': 'Route already running — cancel first'}
 
         stops = self.routes[route_name]
         self._route_cancel.clear()
-
         with self._lock:
             self._route_name     = route_name
             self._route_progress = [(s, 'pending') for s in stops]
@@ -195,22 +214,16 @@ class WaypointUINode(Node):
         def _execute():
             self.get_logger().info(
                 f'Route "{route_name}" started — {len(stops)} stops')
-
             for stop in stops:
                 if self._route_cancel.is_set():
                     self.get_logger().info('Route cancelled by user')
                     break
-
-                # Mark as active
                 with self._lock:
                     for i, (s, _) in enumerate(self._route_progress):
                         if s == stop:
                             self._route_progress[i] = (s, 'active')
                             break
-
                 self.send_goal(stop)
-
-                # Wait up to 120s for this stop to complete or fail
                 deadline = time.time() + 120
                 while time.time() < deadline:
                     if self._route_cancel.is_set():
@@ -220,27 +233,20 @@ class WaypointUINode(Node):
                     if status in ('SUCCEEDED', 'FAILED'):
                         break
                     time.sleep(0.4)
-
                 if self._route_cancel.is_set():
                     break
-
                 with self._lock:
                     if self.nav_status == 'FAILED':
                         self.get_logger().warn(
                             f'Stop "{stop}" failed — aborting route')
                         break
-
-                # Reset for next stop
                 with self._lock:
                     self.nav_status = 'NAVIGATING'
-
-                time.sleep(1.5)  # brief pause at each stop
-
+                time.sleep(1.5)
             with self._lock:
                 self.nav_status   = 'IDLE'
                 self.current_goal = None
                 self._route_name  = None
-
             self.get_logger().info(f'Route "{route_name}" finished')
 
         self._route_thread = threading.Thread(target=_execute, daemon=True)
@@ -248,6 +254,7 @@ class WaypointUINode(Node):
         return {'ok': True, 'route': route_name, 'stops': stops}
 
     # ── State for UI ──────────────────────────────────────────────────────────
+
     def get_state(self) -> dict:
         with self._lock:
             return {
@@ -260,10 +267,19 @@ class WaypointUINode(Node):
                 'route_progress': self._route_progress,
                 'route_active':   bool(
                     self._route_thread and self._route_thread.is_alive()),
+                'camera_active':  self._latest_frame is not None,
             }
 
 
+# ── Threaded HTTP Server ───────────────────────────────────────────────────────
+# ThreadingMixIn ensures the MJPEG stream connection never blocks /state polling
+
+class ThreadedHTTPServer(ThreadingMixIn, HTTPServer):
+    daemon_threads = True
+
+
 # ── HTTP Handler ───────────────────────────────────────────────────────────────
+
 _node: WaypointUINode = None
 
 
@@ -290,10 +306,55 @@ class Handler(BaseHTTPRequestHandler):
     def do_GET(self):
         if self.path == '/state':
             self._send(200, _node.get_state())
+        elif self.path == '/stream':
+            self._stream_mjpeg()
         elif self.path in ('/', '/index.html'):
             self._send(200, UI_HTML, 'text/html; charset=utf-8')
         else:
             self._send(404, {'error': 'not found'})
+
+    def _stream_mjpeg(self):
+        """
+        Serve a continuous MJPEG stream.
+        The browser treats a multipart/x-mixed-replace response as a live <img>.
+        Blocks until client disconnects — runs safely in its own thread
+        thanks to ThreadedHTTPServer.
+        """
+        self.send_response(200)
+        self.send_header(
+            'Content-Type', 'multipart/x-mixed-replace; boundary=--FRAME')
+        self.send_header('Access-Control-Allow-Origin', '*')
+        self.send_header('Cache-Control', 'no-cache')
+        self.end_headers()
+
+        try:
+            while True:
+                # Block until a fresh frame arrives (or 2 s timeout)
+                got = _node._frame_event.wait(timeout=2.0)
+                _node._frame_event.clear()
+
+                if not got:
+                    # Send a tiny keep-alive comment so the connection stays open
+                    self.wfile.write(b'--FRAME\r\n\r\n')
+                    self.wfile.flush()
+                    continue
+
+                with _node._frame_lock:
+                    frame = _node._latest_frame
+
+                if frame is None:
+                    continue
+
+                self.wfile.write(
+                    b'--FRAME\r\n'
+                    b'Content-Type: image/jpeg\r\n'
+                    b'Content-Length: ' + str(len(frame)).encode() + b'\r\n\r\n'
+                    + frame + b'\r\n'
+                )
+                self.wfile.flush()
+
+        except (BrokenPipeError, ConnectionResetError):
+            pass   # Client navigated away or closed the tab
 
     def do_POST(self):
         n    = int(self.headers.get('Content-Length', 0))
@@ -328,7 +389,6 @@ UI_HTML = r"""<!DOCTYPE html>
 body{font-family:'DM Mono',monospace;background:var(--bg);color:var(--text);
      min-height:100vh;display:flex;flex-direction:column}
 
-/* header */
 header{padding:16px 28px;background:var(--panel);border-bottom:1px solid var(--border);
        display:flex;align-items:center;justify-content:space-between;gap:12px}
 header h1{font-family:'Syne',sans-serif;font-size:1.15rem;font-weight:800;
@@ -343,16 +403,13 @@ header h1 span{color:var(--text)}
 .b-OFFLINE{background:#ff6b3518;color:var(--warn);border:1px solid var(--warn)}
 @keyframes pulse{0%,100%{opacity:1}50%{opacity:.45}}
 
-/* layout */
-main{flex:1;display:grid;grid-template-columns:1fr 290px}
+main{flex:1;display:grid;grid-template-columns:1fr 300px}
 #left{padding:24px 28px;border-right:1px solid var(--border);display:flex;flex-direction:column;gap:28px}
 
-/* section */
 .sec-title{font-size:.62rem;letter-spacing:.15em;text-transform:uppercase;
            color:var(--muted);margin-bottom:12px;padding-bottom:7px;
            border-bottom:1px solid var(--border)}
 
-/* waypoint grid */
 #wp-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:10px}
 .wp{background:var(--panel);border:1px solid var(--border);border-radius:10px;
     padding:15px 16px;cursor:pointer;text-align:left;transition:all .15s;
@@ -367,7 +424,6 @@ main{flex:1;display:grid;grid-template-columns:1fr 290px}
          text-transform:capitalize;margin-bottom:3px}
 .wp-hint{font-size:.58rem;color:var(--muted)}
 
-/* route grid */
 #route-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:10px}
 .rt{background:var(--panel);border:1px solid var(--border);border-radius:10px;
     padding:14px 16px;cursor:pointer;text-align:left;
@@ -378,11 +434,34 @@ main{flex:1;display:grid;grid-template-columns:1fr 290px}
          text-transform:capitalize;margin-bottom:5px}
 .rt-stops{font-size:.57rem;color:var(--muted);line-height:1.7}
 
-/* sidebar */
-#sidebar{padding:20px 18px;display:flex;flex-direction:column;gap:20px}
+#sidebar{padding:20px 18px;display:flex;flex-direction:column;gap:20px;overflow-y:auto}
 .sbi h3{font-size:.6rem;letter-spacing:.15em;text-transform:uppercase;
         color:var(--muted);margin-bottom:9px;padding-bottom:5px;
         border-bottom:1px solid var(--border)}
+
+/* ── Camera feed ── */
+#cam-wrap{
+  position:relative;background:#0a0c10;border:1px solid var(--border);
+  border-radius:8px;overflow:hidden;aspect-ratio:16/9;
+  display:flex;align-items:center;justify-content:center}
+#cam-img{width:100%;height:100%;object-fit:cover;display:block}
+#cam-off{
+  display:none;flex-direction:column;align-items:center;
+  gap:6px;color:var(--muted);font-size:.65rem;position:absolute}
+/* Threat overlay banner — shown by JS when status JSON carries threats */
+#threat-banner{
+  position:absolute;bottom:0;left:0;right:0;
+  background:#ff446688;backdrop-filter:blur(4px);
+  color:#fff;font-size:.65rem;letter-spacing:.1em;
+  text-align:center;padding:5px 0;text-transform:uppercase;
+  display:none}
+/* Camera signal dot */
+#cam-dot{
+  position:absolute;top:7px;right:8px;
+  width:7px;height:7px;border-radius:50%;
+  background:var(--muted);transition:background .4s}
+#cam-dot.live{background:var(--accent);box-shadow:0 0 6px var(--accent);
+              animation:pulse 1.4s infinite}
 
 /* pose */
 .pose-row{display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px}
@@ -391,13 +470,11 @@ main{flex:1;display:grid;grid-template-columns:1fr 290px}
 .pl{font-size:.55rem;color:var(--muted);margin-bottom:2px}
 .pv{font-size:.85rem;color:var(--accent)}
 
-/* goal */
 #goal-box{background:var(--panel);border:1px solid var(--border);border-radius:8px;
           padding:11px 13px;font-size:.72rem;color:var(--muted);
           min-height:40px;display:flex;align-items:center;transition:all .2s}
 #goal-box.on{color:var(--blue);border-color:var(--blue)}
 
-/* route progress */
 #prog-box{background:var(--panel);border:1px solid var(--border);border-radius:8px;
           padding:11px 13px;font-size:.65rem;min-height:40px;color:var(--muted)}
 .prog-stop{display:flex;align-items:center;gap:8px;padding:3px 0}
@@ -407,7 +484,6 @@ main{flex:1;display:grid;grid-template-columns:1fr 290px}
 .prog-dot.failed{background:var(--fail)}
 .prog-label{text-transform:capitalize}
 
-/* cancel */
 #cancel-btn{width:100%;padding:13px;background:transparent;
             border:1px solid var(--fail);border-radius:8px;
             color:var(--fail);font-family:'DM Mono',monospace;
@@ -416,7 +492,6 @@ main{flex:1;display:grid;grid-template-columns:1fr 290px}
 #cancel-btn:hover{background:#ff446612}
 #cancel-btn:disabled{opacity:.3;cursor:not-allowed}
 
-/* log */
 #log{font-size:.62rem;color:var(--muted);max-height:130px;
      overflow-y:auto;display:flex;flex-direction:column;gap:3px}
 .le{display:flex;gap:8px}
@@ -445,6 +520,25 @@ main{flex:1;display:grid;grid-template-columns:1fr 290px}
 </div>
 
 <div id="sidebar">
+
+  <!-- ── Pedestrian Safety Camera ── -->
+  <div class="sbi">
+    <h3>Pedestrian Safety Feed</h3>
+    <div id="cam-wrap">
+      <img id="cam-img"
+           src="http://localhost:8765/stream"
+           onerror="camError()"
+      />
+      <div id="cam-off">
+        <span style="font-size:1.4rem">📷</span>
+        No camera signal
+      </div>
+      <div id="threat-banner">⚠ THREAT DETECTED — FROZEN</div>
+      <div id="cam-dot"></div>
+    </div>
+  </div>
+
+  <!-- ── Robot Pose ── -->
   <div class="sbi">
     <h3>Robot Pose (AMCL)</h3>
     <div class="pose-row">
@@ -454,25 +548,30 @@ main{flex:1;display:grid;grid-template-columns:1fr 290px}
     </div>
   </div>
 
+  <!-- ── Current Goal ── -->
   <div class="sbi">
     <h3>Current Goal</h3>
     <div id="goal-box">No active goal</div>
   </div>
 
+  <!-- ── Route Progress ── -->
   <div class="sbi">
     <h3>Route Progress</h3>
     <div id="prog-box" style="color:var(--muted)">No route running</div>
   </div>
 
+  <!-- ── Control ── -->
   <div class="sbi">
     <h3>Control</h3>
     <button id="cancel-btn" disabled onclick="doCancel()">⬛ Cancel</button>
   </div>
 
+  <!-- ── Log ── -->
   <div class="sbi">
     <h3>Log</h3>
     <div id="log"></div>
   </div>
+
 </div>
 </main>
 
@@ -480,18 +579,44 @@ main{flex:1;display:grid;grid-template-columns:1fr 290px}
 const API = 'http://localhost:8765';
 let prev = {};
 let built = false;
+let camErrored = false;
+
+function camError() {
+  camErrored = true;
+  document.getElementById('cam-img').style.display = 'none';
+  document.getElementById('cam-off').style.display = 'flex';
+  document.getElementById('cam-dot').classList.remove('live');
+}
 
 async function poll() {
   try {
-    const s = await fetch(`${API}/state`).then(r=>r.json());
+    const s = await fetch(`${API}/state`).then(r => r.json());
     render(s);
     prev = s;
-  } catch { setBadge('OFFLINE'); }
+  } catch {
+    setBadge('OFFLINE');
+  }
   setTimeout(poll, 800);
 }
 
 function render(s) {
   setBadge(s.nav_status, s.current_goal);
+
+  // Camera dot + reconnect if previously errored
+  const dot = document.getElementById('cam-dot');
+  if (s.camera_active) {
+    dot.classList.add('live');
+    if (camErrored) {
+      // Retry stream — node has frames now
+      const img = document.getElementById('cam-img');
+      img.style.display = 'block';
+      document.getElementById('cam-off').style.display = 'none';
+      img.src = API + '/stream?' + Date.now();
+      camErrored = false;
+    }
+  } else {
+    dot.classList.remove('live');
+  }
 
   // Pose
   document.getElementById('px').textContent = s.robot_pose?.x ?? '—';
@@ -519,15 +644,15 @@ function render(s) {
     built = true;
   }
 
-  // Update waypoint button states
+  // Waypoint button states
   document.querySelectorAll('.wp').forEach(btn => {
-    btn.classList.remove('active','done','failed','pending');
-    if (s.route_active && s.current_goal !== btn.dataset.wp) {
-      // Check route progress
-      const prog = (s.route_progress || []).find(([n])=>n===btn.dataset.wp);
-      if (prog) btn.classList.add(prog[1] === 'done' ? 'done' :
-                                   prog[1] === 'failed' ? 'failed' :
-                                   prog[1] === 'pending' ? 'pending' : '');
+    btn.classList.remove('active', 'done', 'failed', 'pending');
+    if (s.route_active) {
+      const prog = (s.route_progress || []).find(([n]) => n === btn.dataset.wp);
+      if (prog) btn.classList.add(
+        prog[1] === 'done' ? 'done' :
+        prog[1] === 'failed' ? 'failed' :
+        prog[1] === 'pending' ? 'pending' : '');
     }
     if (btn.dataset.wp === s.current_goal && s.nav_status === 'NAVIGATING')
       btn.classList.add('active');
@@ -535,7 +660,7 @@ function render(s) {
       btn.classList.add('done');
   });
 
-  // Update route button states
+  // Route button states
   document.querySelectorAll('.rt').forEach(btn => {
     btn.classList.toggle('running',
       s.route_active && btn.dataset.route === s.route_name);
@@ -583,8 +708,8 @@ function buildRoutes(routes) {
   g.innerHTML = '';
   Object.entries(routes).forEach(([name, stops]) => {
     const b = document.createElement('button');
-    b.className       = 'rt';
-    b.dataset.route   = name;
+    b.className     = 'rt';
+    b.dataset.route = name;
     b.innerHTML = `<div class="rt-name">${fmt(name)}</div>
                    <div class="rt-stops">${stops.join(' → ')}</div>`;
     b.onclick = () => runRoute(name);
@@ -613,7 +738,7 @@ async function post(path, data) {
   try {
     return await fetch(API + path, {
       method: 'POST',
-      headers: {'Content-Type':'application/json'},
+      headers: {'Content-Type': 'application/json'},
       body: JSON.stringify(data)
     }).then(r => r.json());
   } catch(e) {
@@ -629,13 +754,13 @@ function setBadge(status, goal) {
 }
 
 function fmt(s) {
-  return s.replace(/_/g,' ').replace(/\b\w/g, c=>c.toUpperCase());
+  return s.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
 }
 
 function log(msg, type='') {
-  const el   = document.getElementById('log');
-  const now  = new Date().toTimeString().slice(0,8);
-  const div  = document.createElement('div');
+  const el  = document.getElementById('log');
+  const now = new Date().toTimeString().slice(0, 8);
+  const div = document.createElement('div');
   div.className = 'le';
   div.innerHTML = `<span class="lt">${now}</span>
                    <span class="l${type||'muted'}">${msg}</span>`;
@@ -650,7 +775,6 @@ poll();
 
 
 # ── Main ───────────────────────────────────────────────────────────────────────
-_node: WaypointUINode = None
 
 def main():
     global _node
@@ -660,7 +784,7 @@ def main():
     ros_thread = threading.Thread(target=rclpy.spin, args=(_node,), daemon=True)
     ros_thread.start()
 
-    server = HTTPServer(('0.0.0.0', HTTP_PORT), Handler)
+    server = ThreadedHTTPServer(('0.0.0.0', HTTP_PORT), Handler)
     _node.get_logger().info(f'UI → http://localhost:{HTTP_PORT}')
 
     try:
@@ -671,6 +795,7 @@ def main():
         server.shutdown()
         _node.destroy_node()
         rclpy.shutdown()
+
 
 if __name__ == '__main__':
     main()
